@@ -330,7 +330,7 @@ function invoke($callback, array $args = array()) {
  */
 function callable_uid($fn) {
 	if (is_string($fn)) {
-		return $cb;
+		return $fn;
 	}
 	if (is_object($fn)) {
 		if ($fn instanceof \Closure) {
@@ -412,6 +412,26 @@ function is_stringable($parameter) {
 ================================= */
 
 /**
+ * Returns true if value can be used in a foreach() loop.
+ * 
+ * @param wil $var Thing to check if iterable.
+ * @return boolean True if var is array or Traversable, otherwise false.
+ */
+function is_iterable($var) {
+	return (is_array($var) || $var instanceof \Traversable);
+}
+
+/**
+ * Returns true if value can be accessed as an array.
+ * 
+ * @param wild $var Thing to check if array-accessible.
+ * @return boolean True if array or instance of ArrayAccess, otherwise false.
+ */
+function is_arraylike($var) {
+	return (is_array($var) || $var instanceof \ArrayAccess);
+}
+
+/**
  * Checks if all values of array are instances of the passed class.
  * Throws InvalidArgumentException if it isn't true for any value.
  *
@@ -458,26 +478,6 @@ function is_array_arrays(array $arr, $throw_exceptions = false) {
 		}
 	}
 	return true;
-}
-
-/**
- * Returns true if value can be used in a foreach() loop.
- * 
- * @param wil $var Thing to check if iterable.
- * @return boolean True if var is array or Traversable, otherwise false.
- */
-function is_iterable($var) {
-	return (is_array($var) || $var instanceof \Traversable);
-}
-
-/**
- * Returns true if value can be accessed as an array.
- * 
- * @param wild $var Thing to check if array-accessible.
- * @return boolean True if array or instance of ArrayAccess, otherwise false.
- */
-function is_arraylike($var) {
-	return (is_array($var) || $var instanceof \ArrayAccess);
 }
 
 /**
