@@ -1,54 +1,157 @@
 <?php
 
 /** ================================
+		  TOKENS/NONCES
+================================= */
+
+/**
+ * Generates a verifiable token from seed.
+ */
+function generate_token($seed, $algo = null) {
+	
+	if (null === $algo) {
+		define_default('HASH_ALGO_DEFAULT', 'sha1');
+		$algo = HASH_ALGO_DEFAULT;
+	}
+	
+	define_default('HASH_HMAC_KEY', '1<Kjia6~?qxg*|!RLg<E!*TwB%yq)Fa77O:F))>%>Lp/vw-T1QF!Qm6rFWz1X3bQ');
+	
+	return hash_hmac($algo, $seed, HASH_HMAC_KEY);
+}
+
+/**
+ * Verifies a token using seed.
+ */
+function verify_token($token, $seed, $algo = null) {
+	return $token === generate_token($seed, $algo);
+}
+
+/** ================================
 			SCALAR TYPES
 ================================= */
 
-if (! function_exists('is_email')) : // WordPress uses fn name for same.
+/**
+ * Can value be converted to a scalar value?
+ *
+ * @param string Value we'd like to be scalar.
+ * @return boolean
+ */
+function can_be_scalar($var) {
+	switch (gettype($var)) {
+		case 'string' :
+		case 'NULL' :
+		case 'boolean' :
+		case 'double' :
+		case 'integer' :
+			return true;
+		case 'object' :
+			if (method_exists($var, '__toString')) {
+				return true;
+			}
+			return false;
+		case 'array' :
+		case 'resource' :
+		case 'unknown type' :
+		default :
+			return false;
+	}
+}
 
-	/**
-	 * Returns true if $email is a valid e-mail address, otherwise false.
-	 * @uses filter_var() with FILTER_VALIDATE_EMAIL
-	 * @param string $email Email to validate
-	 * @return boolean True if valid email, otherwise false.
-	 */
-	function is_email($email) {
-		return filter_var($email, FILTER_VALIDATE_EMAIL);
+define('SCALAR_FORCE_STRING', 1);
+define('SCALAR_CAST_NUMERIC', 2);
+define('SCALAR_IGNORE_ERR', 4);
+
+/**
+ * Convert value to a scalar value.
+ *
+ * @param string Value we'd like to be scalar.
+ * @param int $flags SCALARVAL_* flag bitwise mask.
+ * @return string
+ * @throws InvalidArgumentException if value can not be scalarized.
+ */
+function scalarval($var, $flags = 0) {
+	
+	switch (gettype($var)) {
+		case 'string' :
+			return ($flags & SCALAR_CAST_NUMERIC) ? cast_numeric($var) : $var;
+		case 'double' :
+		case 'integer' :
+			return ($flags & SCALAR_FORCE_STRING) ? strval($var) : $var;
+		case 'NULL' :
+			return '';
+		case 'boolean' :
+			return ($flags & SCALAR_FORCE_STRING) ? ($var ? '1' : '0') : ($var ? 1 : 0);
+		case 'object' :
+			if (method_exists($var, '__toString')) {
+				return $var->__toString();
+			}
 	}
 	
-endif;
+	if ($flags & SCALAR_IGNORE_ERR) {
+		return '';
+	}
+	
+	throw new InvalidArgumentException('Value can not be scalar - given '.gettype($var));
+}
+
+/**
+ * Returns true if $email is a valid e-mail address, otherwise false.
+ * @uses filter_var() with FILTER_VALIDATE_EMAIL
+ * @param string $email Email to validate
+ * @return boolean True if valid email, otherwise false.
+ */
+function validate_email($email) {
+	return filter_var($email, FILTER_VALIDATE_EMAIL);
+}
 
 /**
  * Sanitizes a string using filter_var() with FILTER_SANITIZE_STRING.
  * 
- * @param scalar $str String to filter.
+ * @param scalar $val String to filter.
  * @param int $filter_flags Bitwise FILTER_FLAG_* flags. Default: 0
  * @return string Sanitized string.
  */
-function filter_string($str, $filter_flags = 0) {
-	return filter_var($str, FILTER_SANITIZE_STRING, $filter_flags);
+function esc_string($val, $filter_flags = 0) {
+	return filter_var($val, FILTER_SANITIZE_STRING, $filter_flags);
 }
 
 /**
- * Sanitizes an integer using filter_var() with FILTER_SANITIZE_NUMBER_INT.
+ * Sanitizes a string using filter_var(), stripping non-ASCII characters (>127).
  * 
- * @param scalar $int Value to filter.
- * @param int $filter_flags Bitwise FILTER_FLAG_* flags. Default: 0
- * @return int Sanitized integer value.
+ * @param scalar $val Scalar value to escape.
+ * @param string String containing only ASCII chars.
  */
-function filter_int($int, $filter_flags = 0) {
-	return filter_var($int, FILTER_SANITIZE_NUMBER_INT, $filter_flags);
+function esc_ascii($val) {
+	return filter_var($val, FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_HIGH | FILTER_FLAG_STRIP_BACKTICK);
 }
 
 /**
  * Sanitizes a float using filter_var() with FILTER_SANITIZE_NUMBER_FLOAT.
  * 
- * @param scalar $float Value to filter.
+ * @param scalar $val Value to filter.
  * @param int $filter_flags Bitwise FILTER_FLAG_* flags. Default: 0
  * @return float Sanitized float value.
  */
-function filter_float($float, $filter_flags = 0) {
-	return filter_var($float, FILTER_SANITIZE_NUMBER_FLOAT, $filter_flags);
+function esc_float($val, $filter_flags = 0) {
+	return filter_var($val, FILTER_SANITIZE_NUMBER_FLOAT, $filter_flags);
+}
+
+/**
+ * Sanitizes an integer using filter_var() with FILTER_SANITIZE_NUMBER_INT.
+ * 
+ * @param scalar $val Value to filter.
+ * @param int $filter_flags Bitwise FILTER_FLAG_* flags. Default: 0
+ * @return int Sanitized integer value.
+ */
+function esc_int($val, $filter_flags = 0) {
+	return filter_var($val, FILTER_SANITIZE_NUMBER_INT, $filter_flags);
+}
+
+/**
+ * &Alias of esc_int()
+ */
+function esc_integer($val, $flags = 0) {
+	return esc_int($val, $flags);
 }
 
 /**
@@ -56,23 +159,26 @@ function filter_float($float, $filter_flags = 0) {
  * whether a decimal point is present. Otherwise returns original.
  */
 function cast_numeric($val) {
-	if (is_string($val) && is_numeric($val))
-		return false === strpos($val, DECIMAL_POINT) ? intval($val) : floatval($val);
+	if (is_numeric($val) && is_string($val)) {
+		return false === strpos($val, DECIMAL_POINT) 
+			? intval($val)
+			: floatval($val);
+	}
 	return $val;
 }
 
 /**
  * Removes all found instances of a string from a string.
  * 
- * Note the function uses str_replace(), so arrays may be
- * passed for either parameter as well.
+ * Note the function uses str_replace(), so an array may be
+ * passed for the charlist parameter.
  * 
- * @param string $charlist Char(s) to search and destroy.
+ * @param string|array $char Char(s) to search and destroy.
  * @param string $subject String to search within.
- * @return string The stripped string.
+ * @return string String with chars removed.
  */
-function str_strip($charlist, $subject) {
-	return str_replace($charlist, '', $subject);
+function str_strip($char, $subject) {
+	return str_replace($char, '', $subject);
 }
 
 /**
@@ -119,6 +225,9 @@ function lslash($str) {
 
 /**
  * Strips "/" and "\" from beginning and end of string.
+ * 
+ * @param string $str Path
+ * @return string Path with no slashes before or after.
  */
 function unslash($str) {
 	return trim($str, '/\\');
@@ -127,6 +236,12 @@ function unslash($str) {
 /**
  * Converts backslashes ("\") to forward slashes ("/") and strips 
  * slashes from both ends of the given string.
+ * 
+ * Useful for normalizing Win/Unix filepaths, or converting class
+ * namespaces to filepaths.
+ * 
+ * @param string $path Path (not necessarily a filesystem path).
+ * @return string Clean path.
  */
 function cleanpath($path) {
 	return trim(str_replace('\\', '/', $path), '/');
@@ -158,22 +273,24 @@ function autoload_dir($namespace, $directory) {
 /**
  * Returns files & directories in a given directory recursively.
  * 
- * Returned array is flattened, where both keys and values are the 
- * full directory/file path.
+ * Returned array is flattened - both keys and values are full filesystem paths.
+ * 
+ * This function is faster than using scan_recursive() with scan_flatten().
+ * However, it can be unperformant if used excessively (particularly with deep recursion).
  * 
  * @param string $dir Directory to scan.
  * @param int $levels Max directory depth level.
  * @param array &$glob The glob of flattend paths.
  * @return array Flattened assoc. array of filepaths.
  */
-function glob_deep($dir, $levels = 5, array &$glob = array(), $level = 1) {
-	$dir = cleanpath($dir);
-	foreach( glob("$dir/*") as $item ) {
-		if (is_dir($item) && $level <= $levels) {
+function glob_recursive($dir, $levels = 5, array &$glob = array(), $level = 1) {
+	$dir = rtrim($dir, '/\\').'/*';
+	foreach( glob($dir) as $item ) {
+		if ($level <= $levels && is_dir($item)) {
 			$level++;
-			glob_deep($item, $levels, $glob, $level);
+			glob_recursive($item, $levels, $glob, $level);
 		} else {
-			$glob[ $item ] = $item;
+			$glob[$item] = $item;
 		}
 	}
 	return $glob;
@@ -189,17 +306,16 @@ function glob_deep($dir, $levels = 5, array &$glob = array(), $level = 1) {
  * @param int $levels Max directory depth level.
  * @return array Multi-dimensional array of files and directories.
  */
-function scan($dir, $recursive = false, $levels = 5) {
-	$dir = cleanpath($dir) . '/';
-	$recursive = (int) $recursive;
+function scan_recursive($dir, $levels = 5, $level = 1) {
+	$dir = rtrim($dir, '/\\').'/';
 	$dirs = array();
 	foreach( scandir($dir) as $item ) {
 		if ('.' !== $item && '..' !== $item) {
-			if (is_dir($dir.$item) && 0 <> $recursive <= $levels) {
-				$recursive++;
-				$dirs[ $item ] = scan($dir.$item, $recursive, $levels);
+			if ($level <= $levels && is_dir($dir.$item)) {
+				$level++;
+				$dirs[$item] = scan_recursive($dir.$item, $levels, $level);
 			} else {
-				$dirs[ $item ] = $dir.$item;
+				$dirs[$item] = $dir.$item;
 			}
 		}
 	}
@@ -207,23 +323,18 @@ function scan($dir, $recursive = false, $levels = 5) {
 }
 
 /**
- * Flattens an array of files and directories returned from scan().
+ * Flattens an array of files and directories returned from scan_recursive().
  * 
  * @param array $dirs Multi-dimensional array from scan().
  * @param array &$all_dirs The flattened filesystem array.
  * @return array The flattened filesystem array.
  */
-function flatten_scan($dirs, array &$all_dirs = array(), $strip_pre = null) {
-	if (isset($strip_pre)) {
-		$pre = cleanpath($strip_pre);
-	} else {
-		$pre = false;
-	}
+function scan_flatten($dirs, array &$all_dirs = array()) {
 	foreach( $dirs as $item ) {
 		if (is_array($item)) {
-			flatten_scan($item, $all_dirs, $pre);
+			scan_flatten($item, $all_dirs, $strip_pre);
 		} else {
-			$all_dirs[($pre ? str_replace($pre, '', $item) : $item)] = $item;
+			$all_dirs[$item] = $item;
 		}
 	}
 	return $all_dirs;
@@ -255,7 +366,7 @@ function include_safe($file, array $data = array()) {
 /**
  * Invokes an invokable callback given array of arguments.
  * 
- * @param wild $var Anything (called if closure or object with __invoke() method).
+ * @param wild $var Anything - if Closure or object with __invoke() method, gets called with $args.
  * @param array $args Array of arguments to pass to callback.
  * @return mixed Result of callback if invokable, otherwise original value.
  */
@@ -268,6 +379,13 @@ function result($var, array $args = array()) {
 /**
  * Invokes a callback using array of arguments.
  * 
+ * Uses the Reflection API to invoke an arbitrary callable.
+ * Thus, arguments can be named and/or not in the proper 
+ * order for calling (they will be correctly ordered).
+ * 
+ * Useful for routing, where the order of route variables may
+ * create an "unordered" array of callback parameters.
+ * 
  * @param callable $callback Callable callback.
  * @param array $args Array of callback parameters.
  * @return mixed Result of callback.
@@ -276,8 +394,7 @@ function invoke($callback, array $args = array()) {
 	
 	$type = null;
 	
-	if ($callback instanceof \Closure || is_string($callback)) {
-		// closure or global function
+	if ($callback instanceof Closure || is_string($callback)) {
 		$refl = new ReflectionFunction($callback);
 		$type = 'func';
 	} elseif (is_array($callback)) {
@@ -301,8 +418,7 @@ function invoke($callback, array $args = array()) {
 		} elseif ($param->isDefaultValueAvailable()) {
 			$params[$name] = $param->getDefaultValue();
 		} else {
-			trigger_error("Missing required parameter '$param'.");
-			return null;
+			throw new RuntimeException("Missing parameter '$param'.");
 		}
 	}
 	
@@ -318,15 +434,15 @@ function invoke($callback, array $args = array()) {
 	
 		case 'object' :
 			return $refl->invokeArgs($callback, $params);
-	
-		default :
-			trigger_error("Unknown callback passed to invoke()");
-			return null;
 	}
+	
+	throw new LogicException("Unknown callback.");
 }
 
 /**
  * Returns human-readable identifier for a callable.
+ * @param callable $fn Callable.
+ * @return string Human-readable callable identifier.
  */
 function callable_uid($fn) {
 	if (is_string($fn)) {
@@ -347,13 +463,16 @@ function callable_uid($fn) {
 }
 
 /** ================================
-			  MISC.
+			  HTTP
 ================================= */
 
 if (! function_exists('redirect')) : // common name
 	
 	/**
 	 * Redirects browser via Location header to given URL.
+	 * 
+	 * @param string $url	URL to redirect to. Used in "Location:" header.
+	 * @return void
 	 */
 	function redirect($url) {
 		if (headers_sent($filename, $line)) {
@@ -365,45 +484,275 @@ if (! function_exists('redirect')) : // common name
 		header('Expires: Mon, 12 Dec 1982 06:00:00 GMT');
 		header('Cache-Control: no-cache, must-revalidate, max-age=0');
 		header('Pragma: no-cache');
+		// don't set status - sent automatically unless 201 or 3xx set
 		header("Location: $url");
 		exit;
 	}
 
 endif;
 
+if (! function_exists('http_response_code')) :
+	
+	/**
+	 * Returns/sends HTTP response status code.
+	 * Back-compat PHP < 5.4 (and actually works...)
+	 * 
+	 * @param null|int $code	HTTP response status code.
+	 * @return int				Current response code.
+	 */
+	function http_response_code($code = null) {
+		
+		if (! isset($code)) {
+			return isset($GLOBALS['HTTP_RESPONSE_CODE']) 
+				? $GLOBALS['HTTP_RESPONSE_CODE'] 
+				: 200;
+		}
+		
+		$code = intval($code);
+		$description = http_response_code_desc($code);
+		
+		if (empty($description)) {
+			$msg = "Invalid HTTP response status code given: '$code'.";
+			throw new InvalidArgumentException($msg);
+		}
+		
+		// Respect RFC2616 for PHP under CGI
+		// @see {@link http://us3.php.net/manual/en/ini.core.php#ini.cgi.rfc2616-headers}
+		if (1 === ini_get('cgi.rfc2616_headers')) {
+			$protocol = 'Status:';
+		} else {
+			$protocol = isset($_SERVER['SERVER_PROTOCOL']) 
+				? $_SERVER['SERVER_PROTOCOL'] 
+				: 'HTTP/1.0';
+		}
+		
+		header("$protocol $code $description", true, $code);
+		
+		return $GLOBALS['HTTP_RESPONSE_CODE'] = $code;
+	}
+	
+endif;
+
+/**
+ * Returns HTTP status header description.
+ * 
+ * @param int $code		HTTP response status code.
+ * @return string		Status description string, or empty if invalid.
+ */
+function http_response_code_desc($code) {
+	$code = abs(intval($code));
+	$header_desc = array(
+		100 => 'Continue',
+		101 => 'Switching Protocols',
+		102 => 'Processing',
+		200 => 'OK',
+		201 => 'Created',
+		202 => 'Accepted',
+		203 => 'Non-Authoritative Information',
+		204 => 'No Content',
+		205 => 'Reset Content',
+		206 => 'Partial Content',
+		207 => 'Multi-Status',
+		226 => 'IM Used',
+		300 => 'Multiple Choices',
+		301 => 'Moved Permanently',
+		302 => 'Found',
+		303 => 'See Other',
+		304 => 'Not Modified',
+		305 => 'Use Proxy',
+		306 => 'Reserved',
+		307 => 'Temporary Redirect',
+		400 => 'Bad Request',
+		401 => 'Unauthorized',
+		402 => 'Payment Required',
+		403 => 'Forbidden',
+		404 => 'Not Found',
+		405 => 'Method Not Allowed',
+		406 => 'Not Acceptable',
+		407 => 'Proxy Authentication Required',
+		408 => 'Request Timeout',
+		409 => 'Conflict',
+		410 => 'Gone',
+		411 => 'Length Required',
+		412 => 'Precondition Failed',
+		413 => 'Request Entity Too Large',
+		414 => 'Request-URI Too Long',
+		415 => 'Unsupported Media Type',
+		416 => 'Requested Range Not Satisfiable',
+		417 => 'Expectation Failed',
+		422 => 'Unprocessable Entity',
+		423 => 'Locked',
+		424 => 'Failed Dependency',
+		426 => 'Upgrade Required',
+		500 => 'Internal Server Error',
+		501 => 'Not Implemented',
+		502 => 'Bad Gateway',
+		503 => 'Service Unavailable',
+		504 => 'Gateway Timeout',
+		505 => 'HTTP Version Not Supported',
+		506 => 'Variant Also Negotiates',
+		507 => 'Insufficient Storage',
+		510 => 'Not Extended'
+	);
+	return isset($header_desc[$code]) ? $header_desc[$code] : '';
+}
+
+/**
+ * Returns array of HTTP request headers.
+ * 
+ * Provides a server- and extension-agnostic function to 
+ * access the HTTP headers sent by the current request.
+ * 
+ * @param array|null $server	Array or null to use $_SERVER
+ * @return array 				HTTP request headers, keys stripped of "HTTP_" and lowercase.
+ */
+function http_request_headers(array $server = null) {
+	static $headers;
+
+	if (empty($server) || $server === $_SERVER) {
+		// get once per request
+		if (isset($headers)) {
+			return $headers;
+		}
+		$server = &$_SERVER;
+	}
+
+	if (function_exists('apache_request_headers')) {
+		$_headers = apache_request_headers();
+	} elseif (extension_loaded('http')) {
+		$_headers = http_get_request_headers();
+	} else {
+		$_headers = array();
+		$misfits = array('CONTENT_TYPE', 'CONTENT_LENGTH', 'CONTENT_MD5', 'AUTH_TYPE');
+		foreach ( $server as $key => $value ) {
+			if (0 === strpos($key, 'HTTP_')) {
+				$_headers[$key] = $value;
+			} elseif (in_array($key, $misfits)) {
+				$_headers[$key] = $value;
+			}
+		}
+	}
+
+	// Normalize header keys
+	$headers = array();
+	foreach ( $_headers as $key => $value ) {
+		$key = str_replace('_', '-', strtolower($key));
+		if (0 === strpos($key, 'http-')) {
+			$key = str_replace('http-', '', $key);
+		}
+		$headers[$key] = $value;
+	}
+
+	return $headers;
+}
+
+/**
+ * Fetches a single HTTP request header.
+ * 
+ * @param string $name		Header name, lowercase, without 'HTTP_' prefix.
+ * @return string|null		Header value, if set, otherwise null.
+ */
+function http_request_header($name) {
+	$headers = http_request_headers();
+	$name = strtolower($name);
+	return isset($headers[$name]) ? $headers[$name] : null;
+}
+
+/**
+ * Matches the contents of a given HTTP request header.
+ * 
+ * @param string $name			Header name, lowercase, without 'HTTP_'.
+ * @param string|array $match	If string, will stripos() check header value 
+ * 								and return boolean if string is found. If array,
+ * 								will find the first matching item from the 
+ * 								comma-exploded header value.
+ * @return boolean|string		String if $match is array and item found, else bool.
+ */
+function http_request_header_match($name, $match) {
+	$header = http_request_header($name);
+	if (null === $header) {
+		return null;
+	}
+	return is_string($match) 
+		? false !== stripos($header, $match) 
+		: array_match_csv($match, $header);
+}
+
+/**
+ * Returns Internet Media Type (MIME) for given filetype.
+ * 
+ * @param string $filetype	Filetype.
+ * @return string			MIME if found, otherwise null.
+ */
+function mimetype($filetype) {
+	$filetype = strtolower($filetype);
+	$mimes = array(
+        'json'		=> 'application/json',
+        'jsonp'		=> 'text/javascript',
+        'js'		=> 'text/javascript',
+        'html'		=> 'text/html',
+        'xml'		=> 'text/xml',
+        'csv'		=> 'text/csv',
+        'plain'		=> 'text/plain',
+        'text'		=> 'text/plain',
+        'css'		=> 'text/css',
+        'vcard'		=> 'text/vcard',
+        'xhtml'		=> 'application/html+xml',
+        'rss'		=> 'application/rss+xml',
+        'atom'		=> 'application/atom+xml',
+        'rdf' 		=> 'application/rdf+xml',
+        'dtd'		=> 'application/xml-dtd',
+        'zip'		=> 'application/zip',
+        'gzip'		=> 'application/gzip',
+        'woff'		=> 'application/font-woff',
+        'soap'		=> 'application/soap+xml',
+        'pdf'		=> 'application/pdf',
+        'download'	=> 'application/octet-stream',
+        'upload'	=> 'multipart/form-data',
+        'form'		=> 'application/x-www-form-urlencoded',
+        'xls'		=> 'application/vnd.ms-excel',
+        'xlxs'		=> 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'ppt'		=> 'application/vnd.ms-powerpoint',
+        'pptx'		=> 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'docx'		=> 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'odt'		=> 'application/vnd.oasis.opendocument.text',
+        'odp'		=> 'application/vnd.oasis.opendocument.presentation',
+        'ods'		=> 'application/vnd.oasis.opendocument.spreadsheet',
+        'xps'		=> 'application/vnd.ms-xpsdocument',
+        'kml'		=> 'application/vnd.google-earth.kml+xml',
+        'flash'		=> 'application/x-shockwave-flash',
+        'swf'		=> 'application/x-shockwave-flash',
+        'dart'		=> 'application/dart',
+        'gif'		=> 'image/gif',
+        'jpeg'		=> 'image/jpeg',
+        'png'		=> 'image/png',
+        'svg'		=> 'image/svg+xml',
+        'mp4'		=> 'audio/mp4',
+        'mp3'		=> 'audio/mpeg',
+        'mpeg'		=> 'audio/mpeg',
+        'ogg'		=> 'audio/ogg',
+        'flac'		=> 'audio/ogg',
+        'wav'		=> 'audio/vnd.wave',
+        'md'		=> 'text/x-markdown',
+        'message'	=> 'message/http',
+    );
+	return isset($mimes[$filetype]) ? $mimes[$filetype] : null;
+}
+
+/** ================================
+ 		    CONSTANTS
+================================= */
+
 /**
  * Defines a constant if not yet defined.
+ * 
+ * @param string $const Name of constant
+ * @param scalar $value Value to define constant if undefined.
+ * @return void
  */
 function define_default($const, $value) {
 	if (! defined($const)) {
 		define($const, $value);
-	}
-}
-
-/**
- * Can passed data can be converted to string?
- *
- * @param string Assert that this data is valid.
- * @return boolean
- */
-function is_stringable($parameter) {
-	switch (gettype($parameter)) {
-		case 'string' :
-		case 'NULL' :
-		case 'boolean' :
-		case 'double' :
-		case 'integer' :
-			return true;
-		case 'object' :
-			if (method_exists($parameter, '__toString')) {
-				return true;
-			}
-			return false;
-		case 'array' :
-		case 'resource' :
-		case 'unknown type' :
-		default :
-			return false;
 	}
 }
 
@@ -432,6 +781,21 @@ function is_arraylike($var) {
 }
 
 /**
+ * Returns first item from $array found in comma-exploded $csv.
+ * 
+ * @param array $array 		Indexed array of items to find, in order.
+ * @param string $csv		Comma-separated string. Gets exploded to find array items.
+ * @return string|boolean	String value if found, otherwise false.
+ */
+function array_match_csv(array $array, $csv) {
+	foreach ( explode(',', $csv) as $match ) {
+		if (isset($array[$match]) || in_array($match, $array, true))
+			return $match;
+	}
+	return false;
+}
+
+/**
  * Checks if all values of array are instances of the passed class.
  * Throws InvalidArgumentException if it isn't true for any value.
  *
@@ -441,7 +805,7 @@ function is_arraylike($var) {
  * @return boolean True if all objects are instances of given class, otherwise false.
  * @throws InvalidArgumentException
  */
-function is_array_instances_of(array $arr, $class, $throw_exceptions = false) {
+function is_array_of_instances(array $arr, $class, $throw_exceptions = false) {
 	foreach ( $arr as $key => $object ) {
 		if (! $object instanceof $class) {
 			if ($throw_exceptions) {
@@ -449,7 +813,8 @@ function is_array_instances_of(array $arr, $class, $throw_exceptions = false) {
 				if (is_object($object)) {
 					$given = 'instance of '.get_class($object);
 				}
-				throw new InvalidArgumentException("Array item with key '{$key}' must be an instance of {$class}, {$given} given.");
+				$msg = "Array item with key '{$key}' must be an instance of {$class}, {$given} given.";
+				throw new InvalidArgumentException($msg);
 			} else {
 				return false;
 			}
@@ -466,12 +831,13 @@ function is_array_instances_of(array $arr, $class, $throw_exceptions = false) {
  * @return boolean
  * @throws InvalidArgumentException
  */
-function is_array_arrays(array $arr, $throw_exceptions = false) {
+function is_array_of_arrays(array $arr, $throw_exceptions = false) {
 	foreach($arr as $key => $object) {
 		if (! is_array($object)) {
 			if ($throw_exceptions) {
 				$given = gettype($object);
-				throw new InvalidArgumentException("Array item with key '{$key}' must be of type array, {$given} given.");
+				$msg = "Array item with key '{$key}' must be of type array, {$given} given.";
+				throw new InvalidArgumentException($msg);
 			} else {
 				return false;
 			}
