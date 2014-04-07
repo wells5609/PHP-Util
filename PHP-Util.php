@@ -52,8 +52,8 @@ function joinpath($path1/* [, $path2 [, ...]] */) {
  * @return boolean True if path is absolute, otherwise false.
  */
 function is_abspath($path) {
-	// Windows absolute paths like "C:\path" but not always "C:"
-	// and backslash is default escape char in fnmatch()
+	// Windows absolute paths must start with letter, not always "C"
+	// backslash is default escape char in fnmatch()
 	return ('\\' === DIRECTORY_SEPARATOR)
 		? fnmatch('?:[/|\]*', $path, FNM_NOESCAPE)
 		: file_exists($path);
@@ -167,8 +167,72 @@ function include_safe($file, array $data = array()) {
 }
 
 /** ================================
- 		FUNCTION CALLING
+ 		  CALLABLES
 ================================= */
+
+define('CLASSINFO_VENDOR', 1);
+define('CLASSINFO_NAMESPACES', 2);
+define('CLASSINFO_CLASS', 4);
+
+/**
+ * Retrieve information about a class.
+ * 
+ * Much like pathinfo(), it will return only information that 
+ * is available, unless a particular item is specified.
+ * 
+ * Returns, if available, as part of the array:
+ * 	1. 'vendor' (string) the top-level namespace name.
+ *  2. 'namespaces' (array) the "middle" namespaces, 0-indexed.
+ *  3. 'class' (string) the base classname, always returned. 
+ * 
+ * @param string|object $class Classname or object to get info on.
+ * @param int $flag One of CLASSINFO_* flags, or null for all.
+ * @return string|array String if flag given and found, otherwise array of info.
+ */
+function classinfo($class, $flag = null) {
+	
+	$info = array();
+	
+	if (! is_string($class)) {
+		$class = get_class($class);	
+	} else {
+		$class = trim($class, '\\');
+	}
+	
+	if (false === strpos($class, '\\')) {
+		$info['class'] = $class;
+		return $info;
+	}
+	
+	$parts = explode('\\', $class);
+	$num = count($parts);
+	
+	if ($flag === CLASSINFO_CLASS) {
+		return $parts[$num-1];
+	} 
+	
+	if ($flag !== CLASSINFO_NAMESPACES) {
+		if ($flag === CLASSINFO_VENDOR) {
+			return $parts[0];
+		}
+		$info['vendor'] = $parts[0];
+	}
+	
+	if ($num > 2) {
+		$info['namespaces'] = array();
+		for ($i=1; $i < $num-1; $i++) {
+			$info['namespaces'][] = $parts[$i];
+		}
+	}
+	
+	if ($flag === CLASSINFO_NAMESPACES) {
+		return isset($info['namespaces']) ? $info['namespaces'] : null;
+	}
+	
+	$info['class'] = $parts[$num-1];
+	
+	return $info;
+}
 
 /**
  * Invokes an invokable callback given array of arguments.
@@ -190,7 +254,7 @@ function result($var, array $args = array()) {
  * Thus, arguments can be named and/or not in the proper 
  * order for calling (they will be correctly ordered).
  * 
- * Useful for routing, where the order of route variables may
+ * Use case: url routing, where the order of route variables may
  * create an "unordered" array of callback parameters.
  * 
  * @param callable $callback Callable callback.
@@ -295,6 +359,12 @@ function http_redirect($url) {
 	exit;
 }
 
+/**
+ * Forces a file download.
+ * 
+ * @param string $file File to send.
+ * @return void
+ */
 function http_force_download($file) {
 	if (headers_sent($filename, $line)) {
 		$msg = "Cannot send file download - output already started in $filename on line $line.";
@@ -431,7 +501,7 @@ function http_response_code_desc($code) {
 function http_request_headers(array $server = null) {
 	static $headers;
 
-	if (empty($server) || $server === $_SERVER) {
+	if (! isset($server) || $server === $_SERVER) {
 		// get once per request
 		if (isset($headers)) {
 			return $headers;
@@ -509,7 +579,7 @@ function http_request_header_match($name, $match) {
 	return null;
 }
 
-function http_get_cache_headers($expires_offset = 86400) {
+function http_create_cache_headers($expires_offset = 86400, $names_as_keys = true) {
 
 	$headers = array();
 
@@ -522,23 +592,40 @@ function http_get_cache_headers($expires_offset = 86400) {
 		$headers['Expires'] = gmdate('D, d M Y H:i:s', time() + $expires_offset).' GMT';
 		$headers['Pragma'] = 'Public';
 	}
+	
+	if (! $names_as_keys) {
+		$_headers = array();
+		foreach($headers as $name => $value) {
+			$_headers[] = $name . ': ' . $value;
+		}
+		return $_headers;
+	}
 
 	return $headers;
 }
 
 function http_is_ssl() {
-	if (
-		(isset($_SERVER['HTTPS']) && ('on' === strtolower($_SERVER['HTTPS']) || '1' == $_SERVER['HTTPS']))
-		|| (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && 'https' == $_SERVER['HTTP_X_FORWARDED_PROTO'])
-		|| (isset($_SERVER['SERVER_PORT']) && '443' == $_SERVER['SERVER_PORT'])
-	){
-		return true;
+	static $ssl;
+	if (! isset($ssl)) {
+		if (
+			(isset($_SERVER['HTTPS']) && ('on' === strtolower($_SERVER['HTTPS']) || '1' == $_SERVER['HTTPS']))
+			|| (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && 'https' == $_SERVER['HTTP_X_FORWARDED_PROTO'])
+			|| (isset($_SERVER['SERVER_PORT']) && '443' == $_SERVER['SERVER_PORT'])
+		){
+			$ssl = true;
+		} else {
+			$ssl = false;
+		}
 	}
-	return false;
+	return $ssl;
 }
 
 function http_get_domain() {
-	return rtrim($_SERVER['HTTP_HOST'], '/\\').rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+	static $domain;
+	if (! isset($domain)) {
+		$domain = rtrim($_SERVER['HTTP_HOST'], '/\\').rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+	}
+	return $domain;
 }
 
 function http_get_url($path = '') {
@@ -611,58 +698,12 @@ function mimetype($filetype) {
  * @author https://github.com/yeroon/codebase
  * 
  * @param string $name Name of cookie.
- * @return mixed Returns the value if cookie exists or false if no cookie was found
+ * @return mixed Returns the value if cookie exists, otherwise false.
  */
 function getcookie($name) {
 	return (isset($_COOKIE[$name]) || array_key_exists($name, $_COOKIE))
 		? $_COOKIE[$name]
     	: false;
-}
-
-/**
- * Encode (hex) an email address for display on the web to prevent spambots.
- *
- * @author https://github.com/yeroon/codebase
- * 
- * @param string $email
- * @return string
- */
-function email_encode($email) {
-    $return = '';
-    for ($i = 0, $len = strlen($email); $i < $len; $i++) {
-        $return .= '&#x'.bin2hex($email[$i]).';';
-    }
-    return $return;
-}
-
-/** ================================
-		  TOKENS/NONCES
-================================= */
-
-/**
- * Generates a verifiable token from seed.
- */
-function generate_token($seed, $algo = null) {
-	
-	if (null === $algo) {
-		if (! defined('HASH_ALGO_DEFAULT')) {
-			define('HASH_ALGO_DEFAULT', 'sha1');
-		}
-		$algo = HASH_ALGO_DEFAULT;
-	}
-	
-	if (! defined('HASH_HMAC_KEY')) {
-		define('HASH_HMAC_KEY', '1#Kjia6~?qxg*/!RIg>E!*TwB%yq)Fa77O:F))>%>Lp/vw-T1QF!Qm6rFWz1X3bQ');
-	}
-	
-	return hash_hmac($algo, $seed, HASH_HMAC_KEY);
-}
-
-/**
- * Verifies a token with seed.
- */
-function verify_token($token, $seed, $algo = null) {
-	return $token === generate_token($seed, $algo);
 }
 
 /** ================================
@@ -788,9 +829,13 @@ function str_strip($char, $subject) {
  * 
  * @param string $haystack String to search within.
  * @param string $needle String to find.
+ * @param boolean $casei True for case-insensitive search. 
  * @return boolean 
  */
-function startswith($haystack, $needle) {
+function startswith($haystack, $needle, $casei = false) {
+	if (true === $casei) {
+		return 0 === stripos($haystack, $needle);
+	}
 	return 0 === strpos($haystack, $needle);
 }
 
@@ -801,8 +846,11 @@ function startswith($haystack, $needle) {
  * @param string $needle String to find.
  * @return boolean 
  */
-function endswith($haystack, $needle) {
-	return 0 === strcasecmp($needle, substr($haystack, -strlen($needle)));
+function endswith($haystack, $needle, $casei = false) {
+	if (true === $casei) {
+		return 0 === strcasecmp($needle, substr($haystack, -strlen($needle)));
+	}
+	return $needle === substr($haystack, -strlen($needle));
 }
 
 /**
@@ -813,6 +861,56 @@ function endswith($haystack, $needle) {
  */
 function unslash($str) {
 	return trim($str, '/\\');
+}
+
+/**
+ * Encode (hex) an email address for display to prevent spambots.
+ *
+ * @author https://github.com/yeroon/codebase
+ * 
+ * @param string $email
+ * @return string
+ */
+function email_encode($email) {
+    $return = '';
+	$len = strlen($email);
+    for ($i = 0; $i < $len; $i++) {
+        $return .= '&#x'.bin2hex($email[$i]).';';
+    }
+    return $return;
+}
+
+/** ================================
+		  TOKENS/NONCES
+================================= */
+
+/**
+ * Generates a verifiable token from seed.
+ */
+function generate_token($seed, $algo = null) {
+	
+	if (null === $algo) {
+		if (defined('HASH_ALGO_DEFAULT')) {
+			$algo = HASH_ALGO_DEFAULT;
+		} else {
+			$algo = 'sha1';
+		}
+	}
+	
+	if (defined('HASH_HMAC_KEY')) {
+		$hmac_key = HASH_HMAC_KEY;
+	} else {
+		$hmac_key = '1#Kjia6~?qxg*/!RIg>E!*TwB%yq)Fa77O:F))>%>Lp/vw-T1QF!Qm6rFWz1X3bQ';
+	}
+	
+	return hash_hmac($algo, $seed, $hmac_key);
+}
+
+/**
+ * Verifies a token with seed.
+ */
+function verify_token($token, $seed, $algo = null) {
+	return $token === generate_token($seed, $algo);
 }
 
 /** ================================
@@ -941,10 +1039,6 @@ if (! function_exists('array_column')) {
 	}
 }
 
-/** ================================
-	From facebook/libphutil
-================================= */
-
 if (! function_exists('id')) :
 	
 	/**
@@ -960,6 +1054,8 @@ if (! function_exists('id')) :
 	 *
 	 * id(new Thing())->doStuff();
 	 *
+	 * @author facebook/libphutil
+	 * 
 	 * @param wild Anything.
 	 * @return wild Unmodified argument.
 	 */
@@ -969,28 +1065,30 @@ if (! function_exists('id')) :
 
 endif;
 
-/**
- * Access an array index, retrieving the value stored there if it exists or
- * a default if it does not. This function allows you to concisely access an
- * index which may or may not exist without raising a warning.
- *
- * @param array Array to access.
- * @param scalar Index to access in the array.
- * @param wild Default value to return if the key is not present in the
- * array.
- * @return wild If $array[$key] exists, that value is returned. If not,
- * $default is returned without raising a warning.
- */
-function index(array $array, $key, $default = null) {
-	// isset() is a micro-optimization - it is fast but fails for null values.
-	if (isset($array[$key])) {
-		return $array[$key];
+if (! function_exists('idx') && ! function_exists('index')) :
+		
+	/**
+	 * Access an array index, retrieving the value stored there if it exists or
+	 * a default if it does not. This function allows you to concisely access an
+	 * index which may or may not exist without raising a warning.
+	 *
+	 * @author facebook/libphutil
+	 * 
+	 * @param array Array to access.
+	 * @param scalar Index to access in the array.
+	 * @param wild Default value to return if the key is not present in the
+	 * array.
+	 * @return wild If $array[$key] exists, that value is returned. If not,
+	 * $default is returned without raising a warning.
+	 */
+	function index(array $array, $key, $default = null) {
+		if (isset($array[$key])) {
+			return $array[$key];
+		}
+		if ($default === null || array_key_exists($key, $array)) {
+			return null;
+		}
+		return $default;
 	}
 
-	// Comparing $default is also a micro-optimization.
-	if ($default === null || array_key_exists($key, $array)) {
-		return null;
-	}
-
-	return $default;
-}
+endif;
