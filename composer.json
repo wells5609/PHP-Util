@@ -1,0 +1,21 @@
+{
+	"name": "wells5609/php-util",
+	"type": "library",
+	"description": "PHP Utilities",
+	"keywords": ["Utility", "Utilities", "Common"],
+	"homepage": "https://github.com/wells5609/PHP-Util",
+	"license": "MIT",
+	"authors": [
+		{
+			"name": "A Developer",
+			"email": "wellspeterson@live.com"
+		}
+	],
+	"require": {
+		"php": ">=5.3"
+	},
+	"autoload": {
+    "files": ["PHP-Util.php"]
+  },
+	"minimum-stability": "dev"
+}
