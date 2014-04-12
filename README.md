@@ -9,18 +9,9 @@ Zero-dependency PHP functions for various common tasks.
  * Requires PHP 5.3+
  * Back-compat for PHP < 5.5
 
-**Sections**
- 1. Miscellaneous
- 2. Scalar handling
- 3. Array handling
- 4. Filesystem
- 5. Callables
- 6. XML
- 
 ##Miscellaneous
-**Functions:**
  * `classinfo()` - Retrieves information about a class, such as 'vendor', 'namespaces', and 'class' (the base class name).
- * `define_default()` - Defines a constant only if undefined. A shortcut for `if (! defined('CONST')) define('CONST', '')`.
+ * `define_default()` - Defines a constant if undefined. Shortcut for `if (! defined('X')) define('X', '');`.
  * `id()` - Returns argument unmodified - mostly for calling methods on a newly instantiated object without setting to a variable.
 
 ##Scalar handling
