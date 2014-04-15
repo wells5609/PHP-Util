@@ -4,10 +4,10 @@
  * 
  * @license MIT
  * @author wells
- * @version 0.2.1
+ * @version 0.2.3
  * 
  * Sections:
- * 	- Miscellaneous - classinfo(), define_default(), id()
+ * 	- Miscellaneous - classinfo(), define_default(), id(), is_win()
  * 	- Scalar handling - scalarval(), esc_*(), starts/endswith(), etc.
  * 	- Array handling - is_iterable(), is_arraylike(), implode_nice(), etc.
  * 	- Filesystem - fwritecsv(), is_abspath(), glob_recursive(), etc.
@@ -15,22 +15,31 @@
  * 	- XML - xml_write_document(), xml_write_element()
  * 
  * Changelog:
- * 	0.2.1 (4/11/14) Add XML functions; create package.
+ * 	0.2.3 (4/14/14)
+ * 		- Add file_extension()
+ * 		- Change fwritecsv() to file_put_csv()
+ * 		- Add file_get_csv()
+ * 	0.2.2 (4/12/14) 
+ * 		- Fix classinfo() bitwise
+ * 		- Add is_win()
+ * 		- Add optional row callback param to fwritecsv()
+ * 	0.2.1 (4/11/14) 
+ * 		- Add XML functions; create package
  */
 
 /** ================================
  		  MISCELLANEOUS
 ================================= */
 
-define('CLASSINFO_VENDOR', 1);
-define('CLASSINFO_NAMESPACES', 2);
-define('CLASSINFO_CLASSNAME', 4);
+define('CLASSINFO_VENDOR', 4);
+define('CLASSINFO_NAMESPACES', 8);
+define('CLASSINFO_CLASSNAME', 16);
 
 /**
  * Retrieve information about a class.
  * 
  * Much like pathinfo(), it will return only information that 
- * is available, unless a particular item is specified.
+ * is available, unless a particular item(s) is specified.
  * 
  * Returns, if available, as part of the array:
  * 	1. 'vendor' (string) the top-level namespace name.
@@ -38,12 +47,16 @@ define('CLASSINFO_CLASSNAME', 4);
  *  3. 'class' (string) the base classname, always available. 
  * 
  * @param string|object $class Classname or object to get info on.
- * @param int $flag One of CLASSINFO_* flags, or null for all.
+ * @param int $flag Bitwise CLASSINFO_* flags, or empty for all.
  * @return string|array String if flag given and found, otherwise array of info.
  */
 function classinfo($class, $flag = null) {
 	
 	$info = array();
+	
+	if (empty($flag)) {
+		$flag = 28;
+	}
 	
 	if (! is_string($class)) {
 		$class = get_class($class);	
@@ -64,16 +77,17 @@ function classinfo($class, $flag = null) {
 	
 	if ($flag === CLASSINFO_CLASSNAME) {
 		return $parts[$num-1];
-	} 
+	}
 	
 	if ($flag !== CLASSINFO_NAMESPACES) {
 		if ($flag === CLASSINFO_VENDOR) {
 			return $parts[0];
+		} else if ($flag & CLASSINFO_VENDOR) {
+			$info['vendor'] = $parts[0];
 		}
-		$info['vendor'] = $parts[0];
 	}
 	
-	if ($num > 2) {
+	if ($num > 2 && $flag & CLASSINFO_NAMESPACES) {
 		$info['namespaces'] = array();
 		for ($i=1; $i < $num-1; $i++) {
 			$info['namespaces'][] = $parts[$i];
@@ -84,7 +98,9 @@ function classinfo($class, $flag = null) {
 		return isset($info['namespaces']) ? $info['namespaces'] : null;
 	}
 	
-	$info['class'] = $parts[$num-1];
+	if ($flag & CLASSINFO_CLASSNAME) {
+		$info['class'] = $parts[$num-1];
+	}
 	
 	return $info;
 }
@@ -100,6 +116,15 @@ function define_default($const, $value) {
 	if (! defined($const)) {
 		define($const, $value);
 	}
+}
+
+/**
+ * Returns true if server OS is Windows.
+ * 
+ * @return boolean True if server OS is Windows, otherwise false.
+ */
+function is_win() {
+	return '\\' === DIRECTORY_SEPARATOR;
 }
 
 if (! function_exists('id')) :
@@ -203,13 +228,6 @@ function esc_int($val, $filter_flags = 0) {
 }
 
 /**
- * &Alias of esc_int()
- */
-function esc_integer($val, $flags = 0) {
-	return esc_int($val, $flags);
-}
-
-/**
  * If $val is a numeric string, converts to float or integer depending on 
  * whether a decimal point is present. Otherwise returns original.
  * 
@@ -293,9 +311,9 @@ function email_encode($email) {
 }
 
 /**
- * Format bytes/bits to SI or binary (IEC) units.
+ * Format bytes to SI or binary (IEC) units.
  * 
- * @param int $bytes Number of bytes (or bits).
+ * @param int $bytes Number of bytes.
  * @param boolean $binary Whether to use binary (IEC) units. Default false.
  * @return string Formatted bytes with abbreviated unit.
  */
@@ -303,12 +321,12 @@ function bytes_format($bytes, $binary = false) {
 	
 	if ($binary) {
 		$prefix = array('B', 'Ki', 'Mi', 'Gi', 'Ti', 'Ei', 'Zi', 'Yi');
-	    $base = 1024;
+		$base = 1024;
 	} else {
 		$prefix = array('B', 'k', 'M', 'G', 'T', 'E', 'Z', 'Y');
 		$base = 1000;
 	}
-	
+
 	$idx = min(intval(log($bytes, $base)), count($prefix)-1);
     
 	return sprintf('%1.4f', $bytes/pow($base, $idx)) .' '. $prefix[$idx].'B';
@@ -355,6 +373,230 @@ function verify_token($token, $seed, $algo = null) {
 }
 
 /** ================================
+			FILESYSTEM
+================================= */
+
+/**
+ * Converts backslashes ("\") to forward slashes ("/") and strips 
+ * slashes from both ends of the given string.
+ * 
+ * Useful for normalizing Windows filepaths, or converting class 
+ * namespaces to filepaths.
+ * 
+ * @param string $path String path (usually a filesystem path).
+ * @return string Clean path.
+ */
+function cleanpath($path) {
+	return trim(str_replace('\\', '/', $path), '/');
+}
+
+/**
+ * Joins given filepaths into one concatenated string.
+ * 
+ * @param string $path ... Paths to join
+ * @return string Joined path.
+ */
+function joinpath($path1/* [, $path2 [, ...]] */) {
+	return implode(DIRECTORY_SEPARATOR, array_map('unslash', func_get_args()));
+}
+
+/**
+ * Returns the full file extension for a given path.
+ * 
+ * "Fixes" the behavior of pathinfo(), which returns only the last extension.
+ * 
+ * Example:
+ * 	pathinfo("somefile.tar.gz") 
+ * 		returns "gz"
+ * 	file_extension("somefile.tar.gz") 
+ * 		returns "tar.gz"
+ * 
+ * @param string $path Filepath (does not need to exist on filesystem).
+ * @return string File extension.
+ */
+function file_extension($path) {
+	if (2 > substr_count($path, '.')) {
+		return substr(strrchr($path, '.'), 1); // faster than pathinfo() with const
+	}
+	$info = pathinfo($path); // use filename minus name plus extension
+	return substr($info['filename'], strpos($info['filename'], '.')+1).'.'.$info['extension'];
+}
+
+/**
+ * Returns true if given an absolute path, otherwise false.
+ * 
+ * @param string $path Filesystem path
+ * @return boolean True if path is absolute, otherwise false.
+ */
+function is_abspath($path) {
+	// Absolute paths on Windows must start with letter (local) 
+	// or a double backslash (network)
+	if ('\\' === DIRECTORY_SEPARATOR) {
+		return 0 === strpos($path, '\\\\')
+			? true
+			// backslash is default escape char in fnmatch()
+			: fnmatch('?:[/|\]*', $path, FNM_NOESCAPE);
+	} else {
+		return file_exists($path);
+	}
+}
+
+/**
+ * Writes an array of data as rows to a CSV file.
+ * 
+ * @param string|resource	Writable filepath, or a file resource with write access.
+ * @param array				Array of data to write as CSV to file.
+ * @param callable $row_cb	[Optional] Callback run for each row; Callback is passed 
+ * 							each row data array. If modification is desired, define
+ * 							the first callback parameter by reference.
+ * @return boolean			True if success, false and error if unwritable file.
+ */
+function file_put_csv($file, array $data, $row_callback = null) {
+	if (! is_resource($file)) {
+		if (! is_writable($file)) {
+			trigger_error("Cannot write CSV to unwritable file '$file'.");
+			return false;
+		}
+		$file = fopen($file, 'wb');
+	}
+    foreach ($data as $i => $row) {
+    	if (isset($row_callback)) {
+    		$row_callback($row, $i);
+    	}
+        fputcsv($file, $row);
+	}
+    fclose($file);
+	return true;
+}
+
+/**
+ * Reads a CSV file and returns rows as an array.
+ * 
+ * @param string|resource $file			File path or handle opened with read capabilities.
+ * @param boolean $first_row_is_data	Whether the first row is data (otherwise, used
+ * 										as header names). Default false.
+ * @param string|null $column_as_key	Column index to use as row array key. Default null.
+ * @return array Array of rows, associative if $column_as_key given, otherwise indexed.
+ */
+function file_get_csv($file, $first_row_is_data = false, $column_as_key = null) {
+	if (! is_resource($file)) {
+		if (! is_readable($file)) {
+			trigger_error("Cannot read CSV from unreadable file '$file'.");
+			return false;
+		}
+		$file = fopen($file, 'rb');
+	}
+	if (! $first_row_is_data) {
+		$headers = fgetcsv($file);
+	}
+	$rows = array();
+	while ($line = fgetcsv($file)) {
+		if (isset($headers)) {
+			$data = array_combine($headers, $line);
+		} else {
+			$data =& $line;
+		}
+		if (isset($column_as_key) && isset($line[$column_as_key])) {
+			$rows[$line[$column_as_key]] = $data;
+		} else {
+			$rows[] = $data;
+		}
+	}
+	fclose($file);
+	return $rows;
+}
+
+/**
+ * Registers an spl autoloader for given namespace and directory.
+ * 
+ * @param string $namespace Class namespace/prefix to catch.
+ * @param string $directory Directory path to class files.
+ * @return void
+ */
+function autoload_dir($namespace, $directory) {
+	if (! is_dir($directory)) {
+		throw new InvalidArgumentException("Cannot register autoloader - $directory is not a directory.");
+	}
+	spl_autoload_register(function($class) use ($namespace, $directory) {
+		if (0 === strpos($class, $namespace)) {
+			include rtrim($directory, '/\\').'/'.str_replace('\\', '/', $class).'.php';
+		}
+	});
+}
+
+/**
+ * Returns files & directories in a given directory recursively.
+ * 
+ * Returned array is flattened - both keys and values are full filesystem paths.
+ * 
+ * Faster than scan_recursive(), but can consume lots of resources if used 
+ * excessively with deep recursion.
+ * 
+ * @param string $dir Directory to scan.
+ * @param int $levels Max directory depth level.
+ * @param array &$glob The glob of flattend paths.
+ * @param int $level Current directory level. Used interally.
+ * @return array Flattened assoc. array of filepaths.
+ */
+function glob_recursive($dir, $levels = 5, array &$glob = array(), $level = 1) {
+	$dir = rtrim($dir, '/\\').'/*';
+	foreach( glob($dir) as $item ) {
+		if ($level <= $levels && is_dir($item)) {
+			$level++;
+			glob_recursive($item, $levels, $glob, $level);
+		} else {
+			$glob[$item] = $item;
+		}
+	}
+	return $glob;
+}
+
+/**
+ * Returns files & directories in a given directory, optionally recursive.
+ *
+ * Returned array is multi-dimensional with directory/file names used as keys.
+ * 
+ * @param string $dir Directory to scan.
+ * @param int $levels Max directory depth level.
+ * @param int $level Current depth level.
+ * @return array Multi-dimensional array of files and directories.
+ */
+function scandir_recursive($dir, $levels = 5, $level = 1) {
+	$dir = rtrim($dir, '/\\').'/';
+	$dirs = array();
+	foreach( scandir($dir) as $item ) {
+		if ('.' !== $item && '..' !== $item) {
+			if ($level <= $levels && is_dir($dir.$item)) {
+				$level++;
+				$dirs[$item] = scandir_recursive($dir.$item, $levels, $level);
+			} else {
+				$dirs[$item] = $dir.$item;
+			}
+		}
+	}
+	return $dirs;
+}
+	
+/**
+ * Returns file contents string, using $data as (the only) local PHP variables.
+ *
+ * @uses extract()
+ *
+ * @param string $file Path to file
+ * @param array $data Assoc. array of variables to localize.
+ * @return string File contents.
+ */
+function include_safe($file, array $data = array()) {
+	$include = function ($__FILE__, array $__DATA__ = array()) {
+		extract($__DATA__, EXTR_REFS);
+		ob_start();
+		include $__FILE__;
+		return ob_get_clean();
+	};
+	return $include($file, $data);
+}
+
+/** ================================
  		  ARRAYS/ITERATION
 ================================= */
 
@@ -384,28 +626,6 @@ if (! function_exists('index') && ! function_exists('idx')) :
 	}
 
 endif;
-
-/**
- * Creates a nested array at index $key if it is not set.
- * 
- * Example:
- * 
- *    if (! isset($array[$key])) {
- *    	  $array[$key] = array();
- *    }
- * 
- * Becomes: idxa($array, $key);
- * 
- * @param array &$array Array
- * @param scalar $key Array key that may or may not exist.
- * @return array Array at $key index of $array.
- */
-function index2array(array &$array, $key) {
-	if (! isset($array[$key])) {
-		$array[$key] = array();
-	}
-	return $array[$key];
-}
 
 /**
  * Returns true if value can be used in a foreach() loop.
@@ -532,164 +752,6 @@ if (! function_exists('array_column')) {
 }
 
 /** ================================
-			FILESYSTEM
-================================= */
-
-/**
- * Writes an array of data as rows to a CSV file.
- * 
- * @param string|resource Writable filepath, or a file resource with write access.
- * @param array $data Array of data to write as CSV to file.
- * @return boolean True if success, false and error if unwritable file.
- */
-function fwritecsv($file, array $data) {
-	if (! is_resource($file)) {
-		if (! is_writable($file)) {
-			trigger_error("Cannot write CSV to unwritable file '$file'.");
-			return false;
-		}
-		$file = fopen($file, 'w');
-	}
-    foreach ($data as $row) {
-        fputcsv($file, $row);
-	}
-    fclose($file);
-	return true;
-}
-
-/**
- * Converts backslashes ("\") to forward slashes ("/") and strips 
- * slashes from both ends of the given string.
- * 
- * Useful for normalizing Windows filepaths, or converting class 
- * namespaces to filepaths.
- * 
- * @param string $path String path (usually a filesystem path).
- * @return string Clean path.
- */
-function cleanpath($path) {
-	return trim(str_replace('\\', '/', $path), '/');
-}
-
-/**
- * Joins given filepaths into one concatenated string.
- * 
- * @param string $path ... Paths to join
- * @return string Joined path.
- */
-function joinpath($path1/* [, $path2 [, ...]] */) {
-	return implode(DIRECTORY_SEPARATOR, array_map('unslash', func_get_args()));
-}
-
-/**
- * Returns true if given an absolute path, otherwise false.
- * 
- * @param string $path Filesystem path
- * @return boolean True if path is absolute, otherwise false.
- */
-function is_abspath($path) {
-	// Absolute paths on Windows must start with letter (local) 
-	// or a double backslash (network)
-	if ('\\' === DIRECTORY_SEPARATOR) {
-		return 0 === strpos($path, '\\\\')
-			? true
-			// backslash is default escape char in fnmatch()
-			: fnmatch('?:[/|\]*', $path, FNM_NOESCAPE);
-	} else {
-		return file_exists($path);
-	}
-}
-
-/**
- * Registers an spl autoloader for given namespace and directory.
- * 
- * @param string $namespace Class namespace/prefix to catch.
- * @param string $directory Directory path to class files.
- * @return void
- */
-function autoload_dir($namespace, $directory) {
-	if (! is_dir($directory)) {
-		throw new InvalidArgumentException("Cannot register autoloader - $directory is not a directory.");
-	}
-	spl_autoload_register(function($class) use ($namespace, $directory) {
-		if (0 === strpos($class, $namespace)) {
-			include rtrim($directory, '/\\').'/'.str_replace('\\', '/', $class).'.php';
-		}
-	});
-}
-
-/**
- * Returns files & directories in a given directory recursively.
- * 
- * Returned array is flattened - both keys and values are full filesystem paths.
- * 
- * This function is faster than using scan_recursive() with scan_flatten().
- * However, it can be slow if used excessively (with deep recursion).
- * 
- * @param string $dir Directory to scan.
- * @param int $levels Max directory depth level.
- * @param array &$glob The glob of flattend paths.
- * @return array Flattened assoc. array of filepaths.
- */
-function glob_recursive($dir, $levels = 5, array &$glob = array(), $level = 1) {
-	$dir = rtrim($dir, '/\\').'/*';
-	foreach( glob($dir) as $item ) {
-		if ($level <= $levels && is_dir($item)) {
-			$level++;
-			glob_recursive($item, $levels, $glob, $level);
-		} else {
-			$glob[$item] = $item;
-		}
-	}
-	return $glob;
-}
-
-/**
- * Returns files & directories in a given directory, optionally recursive.
- *
- * Returned array is multi-dimensional with directory/file names used as keys.
- * 
- * @param string $dir Directory to scan.
- * @param int $levels Max directory depth level.
- * @param int $level Current depth level.
- * @return array Multi-dimensional array of files and directories.
- */
-function scandir_recursive($dir, $levels = 5, $level = 1) {
-	$dir = rtrim($dir, '/\\').'/';
-	$dirs = array();
-	foreach( scandir($dir) as $item ) {
-		if ('.' !== $item && '..' !== $item) {
-			if ($level <= $levels && is_dir($dir.$item)) {
-				$level++;
-				$dirs[$item] = scandir_recursive($dir.$item, $levels, $level);
-			} else {
-				$dirs[$item] = $dir.$item;
-			}
-		}
-	}
-	return $dirs;
-}
-	
-/**
- * Returns file contents string, using $data as (the only) local PHP variables.
- *
- * @uses extract()
- *
- * @param string $file Path to file
- * @param array $data Assoc. array of variables to localize.
- * @return string File contents.
- */
-function include_safe($file, array $data = array()) {
-	$include = function ($__FILE__, array $__DATA__ = array()) {
-		extract($__DATA__, EXTR_REFS);
-		ob_start();
-		include $__FILE__;
-		return ob_get_clean();
-	};
-	return $include($file, $data);
-}
-
-/** ================================
  		  CALLABLES
 ================================= */
 
@@ -731,10 +793,10 @@ function invoke($callback, array $args = array()) {
 	if ($callback instanceof Closure || is_string($callback)) {
 		$refl = new ReflectionFunction($callback);
 		$type = 'func';
-	} elseif (is_array($callback)) {
+	} else if (is_array($callback)) {
 		$refl = new ReflectionMethod($callback[0], $callback[1]);
 		$type = 'method';
-	} elseif (is_object($callback)) {
+	} else if (is_object($callback)) {
 		$refl = new ReflectionMethod(get_class($callback), '__invoke');
 		$type = 'object';
 	} else {
@@ -749,9 +811,9 @@ function invoke($callback, array $args = array()) {
 		
 		if (isset($args[$name])) {
 			$params[$name] = $args[$name];
-		} elseif (isset($args[$i])) {
+		} else if (isset($args[$i])) {
 			$params[$name] = $args[$i];
-		} elseif ($param->isDefaultValueAvailable()) {
+		} else if ($param->isDefaultValueAvailable()) {
 			$params[$name] = $param->getDefaultValue();
 		} else {
 			throw new RuntimeException("Missing parameter '$param'.");
