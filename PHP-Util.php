@@ -529,8 +529,11 @@ function autoload_dir($namespace, $directory) {
  * 
  * Returned array is flattened - both keys and values are full filesystem paths.
  * 
- * Faster than scan_recursive(), but can consume lots of resources if used 
+ * Faster than scandir_recursive(), but can consume lots of resources if used 
  * excessively with deep recursion.
+ * 
+ * Uses glob marking with substr() to check for subdirectories, which runs 
+ * about twice as fast as the same function using is_dir()
  * 
  * @param string $dir Directory to scan.
  * @param int $levels Max directory depth level.
@@ -538,10 +541,11 @@ function autoload_dir($namespace, $directory) {
  * @param int $level Current directory level. Used interally.
  * @return array Flattened assoc. array of filepaths.
  */
-function glob_recursive($dir, $levels = 5, array &$glob = array(), $level = 1) {
+function glob_recursive($dir, $levels = 5, array &$glob = array(), $level=1) {
 	$dir = rtrim($dir, '/\\').'/*';
-	foreach( glob($dir) as $item ) {
-		if ($level <= $levels && is_dir($item)) {
+	foreach( glob($dir, GLOB_MARK) as $item ) {
+		// glob with GLOB_MARK uses system dir sep
+		if ($level <= $levels && DIRECTORY_SEPARATOR === substr($item, -1)) {
 			$level++;
 			glob_recursive($item, $levels, $glob, $level);
 		} else {
@@ -561,7 +565,7 @@ function glob_recursive($dir, $levels = 5, array &$glob = array(), $level = 1) {
  * @param int $level Current depth level.
  * @return array Multi-dimensional array of files and directories.
  */
-function scandir_recursive($dir, $levels = 5, $level = 1) {
+function scandir_recursive($dir, $levels = 5, $level=1) {
 	$dir = rtrim($dir, '/\\').'/';
 	$dirs = array();
 	foreach( scandir($dir) as $item ) {
