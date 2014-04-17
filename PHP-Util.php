@@ -4,17 +4,21 @@
  * 
  * @license MIT
  * @author wells
- * @version 0.2.3
+ * @version 0.2.4
  * 
  * Sections:
  * 	- Miscellaneous - classinfo(), define_default(), id(), is_win()
- * 	- Scalar handling - scalarval(), esc_*(), starts/endswith(), etc.
+ * 	- Scalar handling - scalarval(), esc_*(), str_endswith(), etc.
  * 	- Array handling - is_iterable(), is_arraylike(), implode_nice(), etc.
- * 	- Filesystem - fwritecsv(), is_abspath(), glob_recursive(), etc.
+ * 	- Filesystem - file_put_csv(), is_abspath(), glob_recursive(), etc.
  * 	- Callables - result(), invoke(), callable_uid()
  * 	- XML - xml_write_document(), xml_write_element()
  * 
  * Changelog:
+ *  0.2.4 (4/16/14)
+ * 		- Add parents and interfaces options to classinfo()
+ * 		- Change 'endswith()' to 'str_endswith()'
+ * 		- Change 'startswith()' to 'str_startswith()'
  * 	0.2.3 (4/14/14)
  * 		- Add file_extension()
  * 		- Change fwritecsv() to file_put_csv()
@@ -34,6 +38,11 @@
 define('CLASSINFO_VENDOR', 4);
 define('CLASSINFO_NAMESPACES', 8);
 define('CLASSINFO_CLASSNAME', 16);
+define('CLASSINFO_BASIC', CLASSINFO_VENDOR | CLASSINFO_NAMESPACES | CLASSINFO_CLASSNAME);
+
+define('CLASSINFO_PARENTS', 32);
+define('CLASSINFO_INTERFACES', 64);
+define('CLASSINFO_ALL', CLASSINFO_BASIC | CLASSINFO_PARENTS | CLASSINFO_INTERFACES);
 
 /**
  * Retrieve information about a class.
@@ -55,7 +64,7 @@ function classinfo($class, $flag = null) {
 	$info = array();
 	
 	if (empty($flag)) {
-		$flag = 28;
+		$flag = CLASSINFO_BASIC;
 	}
 	
 	if (! is_string($class)) {
@@ -100,6 +109,24 @@ function classinfo($class, $flag = null) {
 	
 	if ($flag & CLASSINFO_CLASSNAME) {
 		$info['class'] = $parts[$num-1];
+	}
+	
+	if ($flag & CLASSINFO_PARENTS) {
+			
+		$info['parents'] = array_values(class_parents($class));
+		
+		if ($flag === CLASSINFO_PARENTS) {
+			return $info['parents'];
+		}
+	}
+	
+	if ($flag & CLASSINFO_INTERFACES) {
+			
+		$info['interfaces'] = array_values(class_implements($class));
+			
+		if ($flag === CLASSINFO_INTERFACES) {
+			return $info['interfaces'];
+		}
 	}
 	
 	return $info;
@@ -265,7 +292,7 @@ function str_strip($char, $subject) {
  * @param boolean $casei True for case-insensitive search. 
  * @return boolean 
  */
-function startswith($haystack, $needle, $match_case = true) {
+function str_startswith($haystack, $needle, $match_case = true) {
 	return $match_case
 		? 0 === strpos($haystack, $needle)
 		: 0 === stripos($haystack, $needle);
@@ -278,7 +305,7 @@ function startswith($haystack, $needle, $match_case = true) {
  * @param string $needle String to find.
  * @return boolean 
  */
-function endswith($haystack, $needle, $match_case = true) {
+function str_endswith($haystack, $needle, $match_case = true) {
 	return $match_case
 		? 0 === strcmp($needle, substr($haystack, -strlen($needle)))
 		: 0 === strcasecmp($needle, substr($haystack, -strlen($needle)));
@@ -393,7 +420,7 @@ function cleanpath($path) {
 /**
  * Joins given filepaths into one concatenated string.
  * 
- * @param string $path ... Paths to join
+ * @param string ... Paths to join
  * @return string Joined path.
  */
 function joinpath($path1/* [, $path2 [, ...]] */) {
@@ -401,14 +428,16 @@ function joinpath($path1/* [, $path2 [, ...]] */) {
 }
 
 /**
- * Returns the full file extension for a given path.
+ * Returns the full file extension for a given file path.
  * 
  * "Fixes" the behavior of pathinfo(), which returns only the last extension.
  * 
  * Example:
- * 	pathinfo("somefile.tar.gz") 
+ * 
+ * 	pathinfo("somefile.tar.gz", PATHINFO_EXTENSION); 
  * 		returns "gz"
- * 	file_extension("somefile.tar.gz") 
+ * 
+ * 	file_extension("somefile.tar.gz");
  * 		returns "tar.gz"
  * 
  * @param string $path Filepath (does not need to exist on filesystem).
@@ -418,7 +447,7 @@ function file_extension($path) {
 	if (2 > substr_count($path, '.')) {
 		return substr(strrchr($path, '.'), 1); // faster than pathinfo() with const
 	}
-	$info = pathinfo($path); // use filename minus name plus extension
+	$info = pathinfo($path, PATHINFO_FILENAME|PATHINFO_EXTENSION); // filename minus name plus extension
 	return substr($info['filename'], strpos($info['filename'], '.')+1).'.'.$info['extension'];
 }
 
