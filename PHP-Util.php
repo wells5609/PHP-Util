@@ -4,18 +4,23 @@
  * 
  * @license MIT
  * @author wells
- * @version 0.2.4
+ * @version 0.2.5
  * 
  * Sections:
  * 	- Miscellaneous - classinfo(), define_default(), id(), is_win()
  * 	- Scalar handling - scalarval(), esc_*(), str_endswith(), etc.
  * 	- Array handling - is_iterable(), is_arraylike(), implode_nice(), etc.
+ *  - Network - getcookie(), base64_url_encode(), base64_url_decode()
  * 	- Filesystem - file_put_csv(), is_abspath(), glob_recursive(), etc.
  * 	- Callables - result(), invoke(), callable_uid()
  * 	- XML - xml_write_document(), xml_write_element()
  * 
  * Changelog:
- *  0.2.4 (4/16/14)
+ *	0.2.5 (4/20/14)
+ * 		- Add getcookie()
+ * 		- Add base64_url_encode()
+ * 		- Add base64_url_decode()
+ *	0.2.4 (4/16/14)
  * 		- Add parents and interfaces options to classinfo()
  * 		- Change 'endswith()' to 'str_endswith()'
  * 		- Change 'startswith()' to 'str_startswith()'
@@ -56,16 +61,12 @@ define('CLASSINFO_ALL', CLASSINFO_BASIC | CLASSINFO_PARENTS | CLASSINFO_INTERFAC
  *  3. 'class' (string) the base classname, always available. 
  * 
  * @param string|object $class Classname or object to get info on.
- * @param int $flag Bitwise CLASSINFO_* flags, or empty for all.
+ * @param int $flag Bitwise CLASSINFO_* flags. Default CLASSINFO_BASIC.
  * @return string|array String if flag given and found, otherwise array of info.
  */
-function classinfo($class, $flag = null) {
+function classinfo($class, $flag = CLASSINFO_BASIC) {
 	
 	$info = array();
-	
-	if (empty($flag)) {
-		$flag = CLASSINFO_BASIC;
-	}
 	
 	if (! is_string($class)) {
 		$class = get_class($class);	
@@ -78,7 +79,9 @@ function classinfo($class, $flag = null) {
 			return $class;
 		}
 		$info['class'] = $class;
-		return $info;
+		if ((! CLASSINFO_INTERFACES & $flag) && (! CLASSINFO_PARENTS & $flag)) {
+			return $info;
+		}
 	}
 	
 	$parts = explode('\\', $class);
@@ -88,15 +91,15 @@ function classinfo($class, $flag = null) {
 		return $parts[$num-1];
 	}
 	
-	if ($flag !== CLASSINFO_NAMESPACES) {
-		if ($flag === CLASSINFO_VENDOR) {
-			return $parts[0];
-		} else if ($flag & CLASSINFO_VENDOR) {
-			$info['vendor'] = $parts[0];
-		}
+	if ($flag === CLASSINFO_VENDOR) {
+		return $parts[0];
+	} 
+	
+	if ($flag & CLASSINFO_VENDOR) {
+		$info['vendor'] = $parts[0];
 	}
 	
-	if ($num > 2 && $flag & CLASSINFO_NAMESPACES) {
+	if ($num > 2 && ($flag & CLASSINFO_NAMESPACES)) {
 		$info['namespaces'] = array();
 		for ($i=1; $i < $num-1; $i++) {
 			$info['namespaces'][] = $parts[$i];
@@ -112,18 +115,14 @@ function classinfo($class, $flag = null) {
 	}
 	
 	if ($flag & CLASSINFO_PARENTS) {
-			
 		$info['parents'] = array_values(class_parents($class));
-		
 		if ($flag === CLASSINFO_PARENTS) {
 			return $info['parents'];
 		}
 	}
 	
 	if ($flag & CLASSINFO_INTERFACES) {
-			
 		$info['interfaces'] = array_values(class_implements($class));
-			
 		if ($flag === CLASSINFO_INTERFACES) {
 			return $info['interfaces'];
 		}
@@ -322,22 +321,6 @@ function unslash($str) {
 }
 
 /**
- * Encode (hex) an email address for display to prevent spambots.
- *
- * @author https://github.com/yeroon/codebase
- * 
- * @param string $email
- * @return string
- */
-function email_encode($email) {
-    $return = '';
-    for ($i = 0, $len = strlen($email); $i < $len; $i++) {
-        $return .= '&#x'.bin2hex($email[$i]).';';
-    }
-    return $return;
-}
-
-/**
  * Format bytes to SI or binary (IEC) units.
  * 
  * @param int $bytes Number of bytes.
@@ -397,6 +380,49 @@ function generate_token($seed, $algo = null) {
  */
 function verify_token($token, $seed, $algo = null) {
 	return $token === generate_token($seed, $algo);
+}
+
+/** ================================
+		  NETWORK
+================================= */
+
+/**
+ * Retrieve the value of a cookie.
+ * 
+ * Complement to setcookie().
+ *
+ * @param string $name Cookie name.
+ * @return mixed Value of cookie if exists, otherwise false.
+ */
+function getcookie($name) {
+	return array_key_exists($name, $_COOKIE) ? $_COOKIE[$name] : false;
+}
+
+/**
+ * Base64 encode a string, safe for URL's.
+ * 
+ * Designed to work with other language's implementations
+ * of Base64-url. Bug fixes appreciated.
+ * 
+ * @param string $str Data to encode.
+ * @return string URL-safe Base64-encoded string.
+ */
+function base64_url_encode($str) {
+    return str_replace(array('+','/','=','\r','\n'), array('-','_'), base64_encode($str));
+}
+
+/**
+ * Decodes a URL-safe Bas64-encoded string.
+ * 
+ * @param string $str URL-safe Base64-encoded string.
+ * @return string Decoded string.
+ */
+function base64_url_decode($str) {
+	$str = str_replace(array('-', '_'), array('+', '/'), $str);
+	if ($m4 = strlen($str) % 4) {
+		$str .= substr('====', $m4);
+	}
+	return base64_decode($str);
 }
 
 /** ================================
@@ -533,24 +559,6 @@ function file_get_csv($file, $first_row_is_data = false, $column_as_key = null) 
 	}
 	fclose($file);
 	return $rows;
-}
-
-/**
- * Registers an spl autoloader for given namespace and directory.
- * 
- * @param string $namespace Class namespace/prefix to catch.
- * @param string $directory Directory path to class files.
- * @return void
- */
-function autoload_dir($namespace, $directory) {
-	if (! is_dir($directory)) {
-		throw new InvalidArgumentException("Cannot register autoloader - $directory is not a directory.");
-	}
-	spl_autoload_register(function($class) use ($namespace, $directory) {
-		if (0 === strpos($class, $namespace)) {
-			include rtrim($directory, '/\\').'/'.str_replace('\\', '/', $class).'.php';
-		}
-	});
 }
 
 /**
