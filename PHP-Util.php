@@ -4,18 +4,23 @@
  * 
  * @license MIT
  * @author wells
- * @version 0.2.5
+ * @version 0.2.6
  * 
  * Sections:
- * 	- Miscellaneous - classinfo(), define_default(), id(), is_win()
- * 	- Scalar handling - scalarval(), esc_*(), str_endswith(), etc.
- * 	- Array handling - is_iterable(), is_arraylike(), implode_nice(), etc.
- *  - Network - getcookie(), base64_url_encode(), base64_url_decode()
- * 	- Filesystem - file_put_csv(), is_abspath(), glob_recursive(), etc.
- * 	- Callables - result(), invoke(), callable_uid()
- * 	- XML - xml_write_document(), xml_write_element()
- * 
+ * 	- Miscellaneous
+ * 	- Scalar handling
+ * 	- Array handling
+ *  - Network
+ * 	- Filesystem
+ * 	- Callables
+ * 	- XML
+ * ------------------
  * Changelog:
+ * 	0.2.6 (4/25/14)
+ * 		- Add str_between()
+ * 		- Add str_sentences()
+ * 		- Add esc_alnum()
+ * 		- Add in_arrayi()
  *	0.2.5 (4/20/14)
  * 		- Add getcookie()
  * 		- Add base64_url_encode()
@@ -232,6 +237,21 @@ function esc_ascii($val) {
 }
 
 /**
+ * Strips a string of non-alphanumeric characters.
+ * 
+ * @param string $string String to sanitize
+ * @param string|null $extras Characters to allow in addition to alnum chars.
+ * @return string Sanitized string containing only alnum (and any extra) characters.
+ */
+function esc_alnum($string, $extras = null) {
+	if (! isset($extras) && ctype_alnum($string)) {
+		return $string;
+	}
+	$pattern = '/[^a-zA-Z0-9'. (isset($extras) ? $extras : '') .']/';
+	return preg_replace($pattern, '', $string);
+}
+
+/**
  * Sanitizes a float using filter_var() with FILTER_SANITIZE_NUMBER_FLOAT.
  * 
  * @param scalar $val Value to filter.
@@ -310,6 +330,65 @@ function str_endswith($haystack, $needle, $match_case = true) {
 		: 0 === strcasecmp($needle, substr($haystack, -strlen($needle)));
 }
 
+/** 
+ * Returns 1st occurance of text between two strings.
+ * 
+ * The "between" strings are not included in output.
+ * 
+ * @param string $string The string in which to search.
+ * @param string $substr_start The starting string.
+ * @param string $substr_end The ending string.
+ * @return string Text between $start and $end. 
+ */
+function str_between($string, $substr_start, $substr_end) {
+	$str1 = explode($substr_start, $string);
+	$str2 = explode($substr_end, $str1[1]);
+	return trim($str2[0]);	
+}
+
+/**
+ * Get a given number of sentences from a string.
+ *
+ * @param string $text The full string of sentences.
+ * @param integer $num Number of sentences to return.
+ * @param boolean|array $strip Whether to strip abbreviations (they break the function).
+ * Pass an array to account for those abbreviations as well. See function body.
+ * @return string Given number of sentences.
+ */
+function str_sentences($text, $num, $strip = false) {
+	$text = strip_tags($text);
+	// shall we strip?
+	if ($strip) {
+		// brackets are for uniqueness - if we just removed the 
+		// dots, then "Mr" would match "Mrs" when we reconvert.
+		$replace = array(
+			'Dr.' => '<Dr>',
+			'Mrs.' => '<Mrs>',
+			'Mr.' => '<Mr>',
+			'Ms.' => '<Ms>',
+			'Co.' => '<Co>',
+			'Ltd.' => '<Ltd>',
+			'Inc.' => '<Inc>',
+		);
+		// add extra strings to strip
+		if (is_array($strip)) {
+			foreach($strip as $s) {
+				$replace[$s] = '<'.str_replace('.', '', $s).'>';	
+			}
+		}
+		// replace with placeholders and set the key/value vars
+		$text = str_replace(
+			$replace_keys = array_keys($replace), 
+			$replace_vals = array_values($replace), 
+			$text
+		);
+	}
+	// get given number of strings delimited by ".", "!", or "?"
+	preg_match('/^([^.!?]*[\.!?]+){0,'.$num.'}/', $text, $match);
+	// replace the placeholders with originals
+	return $strip ? str_replace($replace_vals, $replace_keys, $match[0]) : $match[0];
+}
+
 /**
  * Strips "/" and "\" from beginning and end of string.
  * 
@@ -359,17 +438,17 @@ function bytes_format($bytes, $binary = false) {
 function generate_token($seed, $algo = null) {
 	
 	if (null === $algo) {
-		if (defined('HASH_ALGO_DEFAULT')) {
-			$algo = HASH_ALGO_DEFAULT;
+		if (defined('TOKEN_DEFAULT_ALGO')) {
+			$algo = TOKEN_DEFAULT_ALGO;
 		} else {
 			$algo = 'sha1';
 		}
 	}
 	
-	if (defined('HASH_HMAC_KEY')) {
-		$hmac_key = HASH_HMAC_KEY;
+	if (defined('TOKEN_HMAC_KEY')) {
+		$hmac_key = TOKEN_HMAC_KEY;
 	} else {
-		$hmac_key = '1#Kjia6~?qxg*/!RIg>E!*TwB%yq)Fa77O:F))>%>Lp/vw-T1QF!Qm6rFWz1X3bQ';
+		$hmac_key = '4tj;,#K3+H%&a?*c*K8._O]~K_~XD &h3#I/pv#Rtoi,Iul84I/kg*J=Kk8sbGIa';
 	}
 	
 	return hash_hmac($algo, $seed, $hmac_key);
@@ -619,22 +698,21 @@ function scandir_recursive($dir, $levels = 5, $level=1) {
 }
 	
 /**
- * Returns file contents string, using $data as (the only) local PHP variables.
- *
- * @uses extract()
- *
- * @param string $file Path to file
- * @param array $data Assoc. array of variables to localize.
- * @return string File contents.
+ * Includes a file using include().
+ * 
+ * Useful for classes to include files in isolated scope
+ * without resorting to closures.
+ * 
+ * @param string $file Path to file.
+ * @param array $localize [Optional] Associative array of variables
+ * to localize using extract(). Default null.
+ * @return void
  */
-function include_safe($file, array $data = array()) {
-	$include = function ($__FILE__, array $__DATA__ = array()) {
-		extract($__DATA__, EXTR_REFS);
-		ob_start();
-		include $__FILE__;
-		return ob_get_clean();
-	};
-	return $include($file, $data);
+function include_file($file, array $localize = null) {
+	if (isset($localize)) {
+		extract($localize, EXTR_REFS);
+	}
+	include $file;
 }
 
 /** ================================
@@ -737,6 +815,18 @@ function is_array_of_arrays(array $arr, $throw_exceptions = false) {
 		}
 	}
 	return true;
+}
+
+/**
+ * Case-insensitive in_array().
+ * 
+ * Note you cannot pass an array as the needle to this function.
+ * 
+ * @param string $needle Needle
+ * @param array $haystack Haystack
+ */
+function in_arrayi($needle, $haystack) {
+    return in_array(strtolower($needle), array_map('strtolower', $haystack));
 }
 
 /**
@@ -889,7 +979,7 @@ function callable_uid($fn) {
 		if ($fn instanceof \Closure) {
 			return 'Closure';
 		}
-		return get_class($fn) . '::__invoke';
+		return get_class($fn).'::__invoke';
 	}
 	if (is_array($fn)) {
 		if (is_object($fn[0])){
@@ -933,12 +1023,14 @@ function xml_write_document(array $data, $root_tag = 'document', $version = '1.0
 function xml_write_element(XMLWriter $xml, array $data) {
 
 	foreach ( $data as $key => $value ) {
-
+		
+		if (! ctype_alnum($key)) {
+			$key = strip_tags(str_replace(array(' ', '-', '/', '\\'), '_', $key));
+		}
+		
 		if (is_numeric($key)) {
 			$key = 'key_'. (int)$key;
 		}
-
-		$key = strip_tags(str_replace(array(' ', '-', '/', '\\'), '_', $key));
 
 		if (is_object($value)) {
 			$value = get_object_vars($value);
