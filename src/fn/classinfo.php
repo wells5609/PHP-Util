@@ -1,7 +1,4 @@
 <?php
-/**
- * @package PHP-Util\classinfo
- */
 
 define('CLASSINFO_VENDOR', 4);
 define('CLASSINFO_NAMESPACES', 8);
