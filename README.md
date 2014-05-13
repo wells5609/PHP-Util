@@ -6,13 +6,13 @@ Low-level PHP functions for various common operations.
 ###Features
  * No dependencies
  * Tested on Unix and Windows systems
- * PHP 5.3+ (although most is 5.2-compatible), some back-compat for < 5.5
+ * PHP 5.3+ (although most functions are 5.2-compatible), some back-compat for < 5.5
 
 The library is split into four sub-packages:
- * Scalar
- * Array
- * Filesystem
- * Miscellaneous
+ * [Scalar](#scalar)
+ * [Array](#array)
+ * [Filesystem](#filesystem)
+ * [Miscellaneous](#miscellaneous)
 
 In addition, some less useful (but still useful) functions are available on-demand.
 
@@ -41,7 +41,29 @@ Non-exaustive list of included functions:
  * **`generate_token()`** - Generates a verifiable seed-based token using a given or default hashing algorithm.
  * **`verify_token()`** - Verifies a given seed and token generated with `generate_token()`.
 
+##Array
+Functions that operate on arrays (some operate on iterable objects as well).
+
+ * **`array_mpull()`** - Given an array of objects, create a new array with the value returned from a method call on each object.
+ * **`array_ppull()`** - Same as above, except pull values from a property rather than a method.
+ * **`array_kpull()`** Given an array of arrays, create a new array using a value from each array identified by its key/index.
+ * **`array_mfilter()`** - Return a modified list of objects which return true for a given method. Optionally reverse the behavior.
+ * **`array_key()`** - Get a key from an array given its position as expressed by an integer (positive or negative), or one of "first" or "last".
+ * **`array_mergev()`** - Merge a vector (indexed array) of arrays.
+ * **`array_merge_ref()`** - Merge arrays into the first by reference.
+ * **`is_array_instance()`** - Returns true if all the objects in an array are an instance of a given class.
+ * **`is_array_arrays()`** - Returns true if all the items in an array are arrays.
+ * **`explode_trim()`** - Explodes a string into an array, trimming whitespace (or given chars) from each item.
+ * **`implode_nice()`** - Implementation of `implode()` that allows you to use a different separator for the last item; good for natural lanugage lists.
+ * **`array_column()`** - Simple back-compat for < 5.5
+
+
+##Filesystem
+Functions that operate on the filesystem or its components.
+
+
 ##Miscellaneous
+Functions that didn't fit anywhere else.
 
  * **`define_default()`** - Defines a constant only if it is undefined.
  * **`id()`** - Returns argument unmodified.
