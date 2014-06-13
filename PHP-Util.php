@@ -38,19 +38,77 @@
  * 		- Add XML functions; create package
  */
 
-require __DIR__ .'/src/scalar.php';
-require __DIR__.'/src/array.php';
-require __DIR__.'/src/filesystem.php';
-require __DIR__.'/src/misc.php';
-
-function phputil_use_function($function) {
+/**
+ * Loader function for the various function packages.
+ * 
+ * @param string $package File name of package w/o extension.
+ * @return void
+ */
+function php_util_use($package) {
 	
-	$file = __DIR__.'/src/fn/'.$function.'.php';
+	$file = __DIR__.'/src/'.$package.'.php';
 	
-	if (file_exists($file)) {
-		include_once $file;
-		return true;
+	if (! file_exists($file)) {
+		trigger_error("Missing PHP-Util library '$package'.", E_USER_WARNING);
+		return null;
 	}
 	
-	return false;
+	require_once $file;
 }
+
+function php_util_use_function($function) {
+	return php_util_use('fn/'.$function);
+}
+
+/** ================================
+			Misc.
+================================= */
+php_util_use('miscellaneous');
+
+/** ================================
+			Strings
+================================= */
+php_util_use('str');
+
+/** ================================
+		Scalar Formatting
+================================= */
+php_util_use('format');
+
+/** ================================
+		  URL-Safe Base64
+================================= */
+php_util_use('base64-url');
+
+/** ================================
+		Misc. Functions
+================================= */
+php_util_use_function('to_seconds');
+
+/** ================================
+		Scalar Sanitization
+================================= */
+php_util_use('esc');
+php_util_use('sanitize-validate');
+
+/** ================================
+			Arrays
+================================= */
+php_util_use('array');
+
+/** ================================
+			Filesystem
+================================= */
+php_util_use('path');
+php_util_use('dir');
+php_util_use('file');
+
+/** ================================
+			Callable
+================================= */
+php_util_use('callable');
+
+/** ================================
+			XML
+================================= */
+php_util_use('xml');

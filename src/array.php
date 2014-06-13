@@ -8,6 +8,34 @@
 ================================= */
 
 /**
+ * Pulls a value from each array in an array by key/index and returns an array of the values.
+ * 
+ * @param array $arrays Array of arrays.
+ * @param string|int $index Index offset or key name to pull from each array.
+ * @param string|null $key_index [Optional] Index/key to use for keys in returned array.
+ * @return array Indexed array of the value pulled from each array.
+ */
+function array_pull(array $arrays, $index, $key_index = null) {
+	$return = array();
+	foreach($arrays as $key => &$array) {
+		if (null !== $key_index) {
+			$key = $array[$key_index];
+		}
+		if (null === $index) {
+			$return[$key] = $array;
+		} else {
+			$return[$key] = $array[$index];
+		}
+	}
+	return $return;
+}
+
+/** Alias of array_pull() */
+function array_kpull(array $arrays, $index, $key_index = null) {
+	return array_pull($arrays, $index, $key_index);
+}
+
+/**
  * Calls a method on each object in an array and returns an array of the results.
  * 
  * @param array $objects Array of objects.
@@ -54,29 +82,6 @@ function array_ppull(array $objects, $property, $key_prop = null) {
 }
 
 /**
- * Pulls a named key value from each array in an array and returns an array of the values.
- * 
- * @param array $arrays Array of arrays.
- * @param string|int $index Index offset or key name to pull from each array.
- * @param string|null $key_index [Optional] Index/key to use for keys in returned array.
- * @return array Indexed array of the value pulled from each array.
- */
-function array_kpull(array $arrays, $index, $key_index = null) {
-	$return = array();
-	foreach($arrays as $key => &$array) {
-		if (null !== $key_index) {
-			$key = $array[$key_index];
-		}
-		if (null === $index) {
-			$return[$key] = $array;
-		} else {
-			$return[$key] = $array[$index];
-		}
-	}
-	return $return;
-}
-
-/**
  * Filters an array of objects by method.
  * 
  * If object returns an empty value, the object is not included in the returned array.
@@ -103,6 +108,29 @@ function array_mfilter(array $objects, $method, $negate = false) {
 	return $return;
 }
 
+function array_pfilter(array $objects, $property, $negate = false) {
+	$return = array();
+	foreach($objects as $key => &$object) {
+		if (empty($object->$property)) {
+			$negate and $return[$key] = $object;
+		} else if (! $negate) {
+			$return[$key] = $object;
+		}
+	}
+	return $return;
+}
+
+function array_kfilter(array $arrays, $key, $negate = false) {
+	$return = array();
+	foreach($arrays as $o_key => $array) {
+		if (empty($array[$key])) {
+			$negate and $return[$o_key] = $array;
+		} else if (! $negate) {
+			$return[$o_key] = $array;
+		}
+	}
+	return $return;
+}
 /**
  * Retrieves a key from an array given its position - "first", "last", or an integer.
  * 
@@ -122,7 +150,6 @@ function array_mfilter(array $objects, $method, $negate = false) {
 function array_key(array $array, $pos) {
 		
 	if (! is_int($pos)) {
-		
 		switch($pos) {
 			case 'first' :
 				reset($array);
@@ -134,18 +161,17 @@ function array_key(array $array, $pos) {
 				$msg = 'Key position expected to be "first", "last", or integer - given "'.gettype($pos).'".';
 				throw new InvalidArgumentException($msg);
 			}
-		
 		return key($array);
 	}
-
-	$test = array_keys($array);
+	
+	$keys = array_keys($array);
 	
 	if ($pos <= 0) {
 		$pos = abs($pos);
-		$test = array_reverse($test, false);
+		$keys = array_reverse($keys, false);
 	}
 	
-	return isset($test[$pos-1]) ? $test[$pos-1] : null;	
+	return isset($keys[$pos-1]) ? $keys[$pos-1] : null;	
 }
 
 if (! function_exists('array_mergev')) :
@@ -161,10 +187,7 @@ if (! function_exists('array_mergev')) :
 	 * @return array Merged arrays.
 	 */
 	function array_mergev(array $arrays) {
-		if (! $arrays) {
-			return array();
-		}
-		return call_user_func_array('array_merge', $arrays);
+		return empty($arrays) ? array() : call_user_func_array('array_merge', $arrays);
 	}
 
 endif;
@@ -229,36 +252,6 @@ function array_map_keys($callback, array $array) {
 }
 
 /**
- * Case-insensitive in_array().
- * 
- * @param string $needle Needle
- * @param array $haystack Haystack
- */
-function in_arrayi($needle, $haystack) {
-	return in_array(strtolower($needle), array_map('strtolower', $haystack));
-}
-
-/**
- * Returns true if value can be used in a foreach() loop.
- * 
- * @param wil $var Thing to check if iterable.
- * @return boolean True if var is array or Traversable, otherwise false.
- */
-function is_iterable($var) {
-	return (is_array($var) || $var instanceof \Traversable);
-}
-
-/**
- * Returns true if value can be accessed as an array.
- * 
- * @param wild $var Thing to check if array-accessible.
- * @return boolean True if array or instance of ArrayAccess, otherwise false.
- */
-function is_arraylike($var) {
-	return (is_array($var) || $var instanceof \ArrayAccess);
-}
-
-/**
  * Checks if all values of array are instances of the passed class.
  * Throws InvalidArgumentException if it isn't true for any value.
  *
@@ -268,12 +261,11 @@ function is_arraylike($var) {
  * @return boolean True if all objects are instances of given class, otherwise false.
  * @throws InvalidArgumentException
  */
-function is_array_instances(array $arr, $class, $throw_exceptions = false) {
+function array_is_instances(array $arr, $class, $throw_exceptions = false) {
 	foreach ( $arr as $key => $object ) {
 		if (! $object instanceof $class) {
 			if ($throw_exceptions) {
-				$given = gettype($object);
-				is_object($object) and $given = 'instance of '.get_class($object);
+				$given = is_object($object) ? 'instance of '.get_class($object) : gettype($object);
 				$msg = "Array item with key '{$key}' must be an instance of {$class}, {$given} given.";
 				throw new InvalidArgumentException($msg);
 			} else {
@@ -292,18 +284,19 @@ function is_array_instances(array $arr, $class, $throw_exceptions = false) {
  * @return boolean
  * @throws InvalidArgumentException
  */
-function is_array_arrays(array $arr, $throw_exceptions = false) {
-	foreach($arr as $key => &$item) {
-		if (! is_array($item)) {
-			if ($throw_exceptions) {
-				$msg = "Array item with key '{$key}' must be of type array, ".gettype($item).' given.';
-				throw new InvalidArgumentException($msg);
-			} else {
-				return false;
-			}
-		}
-	}
-	return true;
+function array_is_arrays(array $arr, $throw_exceptions = false) {
+	$filtered = array_filter($arr, 'is_array');
+	return count($arr) === count($filtered);
+}
+
+/**
+ * Case-insensitive in_array().
+ * 
+ * @param string $needle Needle
+ * @param array $haystack Haystack
+ */
+function in_arrayi($needle, $haystack) {
+	return in_array(strtolower($needle), array_map('strtolower', $haystack));
 }
 
 /**

@@ -1,8 +1,8 @@
 {
 	"name": "wells5609/php-util",
 	"type": "library",
-	"description": "PHP Utilities",
-	"keywords": ["Utility", "Utilities", "Common"],
+	"description": "The missing utility functions for PHP.",
+	"keywords": ["Utility", "Utilities", "Common", "Helpers"],
 	"homepage": "https://github.com/wells5609/PHP-Util",
 	"license": "MIT",
 	"authors": [
