@@ -8,18 +8,18 @@
 ================================= */
 
 /**
- * Invokes an invokable callback given array of arguments.
+ * Invokes an callback (if callable) or returns the unmodified argument.
  * 
  * @author FuelPHP
  * 
- * @param wild $var Anything - if Closure or object with __invoke() method, called with $args.
- * @param array $args Array of arguments to pass to callback.
- * @return mixed Result of callback if invokable, otherwise original value.
+ * @param wild $var Anything - Executed if Closure or object with __invoke().
+ * @return mixed Result of callback if callable, otherwise original value.
  */
-function result($var, array $args = array()) {
-	return ($var instanceof \Closure || method_exists($var, '__invoke')) 
-		? call_user_func_array($var, $args) 
-		: $var;
+function result($var) {
+	if ($var instanceof \Closure || method_exists($var, '__invoke')) {
+		return $var();
+	}
+	return $var;
 }
 
 /**

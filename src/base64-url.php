@@ -2,14 +2,11 @@
 /**
  * @package wells5609/php-util
  * 
- * URL-safe Base64 encoding functions.
+ * URL-safe Base64 functions.
  */
 
 /**
  * Base64 encode a string, safe for URL's.
- * 
- * Designed to work with other language's implementations
- * of Base64-url. Bug fixes appreciated.
  * 
  * @param string $str Data to encode.
  * @return string URL-safe Base64-encoded string.

@@ -17,7 +17,7 @@
  */
 function array_pull(array $arrays, $index, $key_index = null) {
 	$return = array();
-	foreach($arrays as $key => &$array) {
+	foreach($arrays as $key => $array) {
 		if (null !== $key_index) {
 			$key = $array[$key_index];
 		}
@@ -39,8 +39,8 @@ function array_kpull(array $arrays, $index, $key_index = null) {
  * Calls a method on each object in an array and returns an array of the results.
  * 
  * @param array $objects Array of objects.
- * @param string $method Method to call on each object.
- * @param string|null $key_method [Optional] Method used to get the key used in return array.
+ * @param string|null $method Method to call on each object, or null to return whole object.
+ * @param string|null $key_method [Optional] Method used to get keys used in returned array.
  * @return array Indexed array of values returned from each object.
  */
 function array_mpull(array $objects, $method, $key_method = null) {
@@ -62,13 +62,13 @@ function array_mpull(array $objects, $method, $key_method = null) {
  * Pulls a property from each object in an array and returns an array of the values.
  * 
  * @param array $objects Array of objects.
- * @param string $property Name of property to get from each object.
+ * @param string $property Name of property to get from each object, or null for whole object.
  * @param string|null $key_prop [Optional] Property to use for keys in returned array.
  * @return array Indexed array of property value from each object.
  */
 function array_ppull(array $objects, $property, $key_prop = null) {
 	$return = array();
-	foreach($objects as $key => &$obj) {
+	foreach($objects as $key => $obj) {
 		if (null !== $key_prop) {
 			$key = $obj->$key_prop;
 		}
@@ -131,6 +131,7 @@ function array_kfilter(array $arrays, $key, $negate = false) {
 	}
 	return $return;
 }
+
 /**
  * Retrieves a key from an array given its position - "first", "last", or an integer.
  * 
@@ -141,10 +142,10 @@ function array_kfilter(array $arrays, $key, $negate = false) {
  * value of the given position working backwards in the array.
  * e.g. -1 returns the last key, -2 the second to last, -3 the third to last, etc.
  * 
- * Somewhat oddly, if given 0, the first key is returned (the same as passing 1 or "first").
+ * If given 0, null is returned.
  * 
  * @param array $array Associative array.
- * @param string|int $pos Position of key to return - "first", "last", or integer.
+ * @param string|int $pos Position of key to return - "first", "last", or non-zero integer.
  * @return scalar Key in given position, if found, otherwise null.
  */
 function array_key(array $array, $pos) {
@@ -222,7 +223,7 @@ function array_merge_ref(array &$array /*, $array1 [, ...] */){
  * 
  * $newArray = array_filter_keys($array, 'is_numeric');
  * 
- * $newArray is now: array(1 => 'One', 2 => 'Two', '3' => 'Three');
+ * $newArray is: array(1 => 'One', 2 => 'Two', '3' => 'Three');
  * 
  * @param array $input Array to filter by key.
  * @param callable|null $callback Callback filter. Default null (removes empty keys).
@@ -241,7 +242,7 @@ function array_filter_keys(array $input, $callback = null) {
  * 
  * $newArray = array_map_keys('ucfirst', $array);
  * 
- * $newArray is now: array('First' => 1, 'Second' => 2, 'Third' => 3);
+ * $newArray is: array('First' => 1, 'Second' => 2, 'Third' => 3);
  * 
  * @param callable $callback Callback to apply to each array key.
  * @param array $array Associative array.
@@ -252,41 +253,29 @@ function array_map_keys($callback, array $array) {
 }
 
 /**
- * Checks if all values of array are instances of the passed class.
- * Throws InvalidArgumentException if it isn't true for any value.
+ * Checks if all values in an array are an instance of the given class.
  *
- * @param array
+ * @param array Array of objects.
  * @param string Name of the class.
- * @param boolean Whether to throw exceptions for invalid values. Default false.
- * @return boolean True if all objects are instances of given class, otherwise false.
- * @throws InvalidArgumentException
+ * @return boolean True if all objects are an instance of given class, otherwise false.
  */
-function array_is_instances(array $arr, $class, $throw_exceptions = false) {
-	foreach ( $arr as $key => $object ) {
+function array_is_instances(array $objects, $class) {
+	foreach($objects as $object) {
 		if (! $object instanceof $class) {
-			if ($throw_exceptions) {
-				$given = is_object($object) ? 'instance of '.get_class($object) : gettype($object);
-				$msg = "Array item with key '{$key}' must be an instance of {$class}, {$given} given.";
-				throw new InvalidArgumentException($msg);
-			} else {
-				return false;
-			}
+			return false;
 		}
 	}
 	return true;
 }
 
 /**
- * Checks if all values of an array are arrays.
+ * Checks if all values in an array are arrays.
  * 
  * @param array $arr
- * @param boolean $throw_exceptions Whether to throw exceptions for invalid values or just return false.
- * @return boolean
- * @throws InvalidArgumentException
+ * @return boolean True if all values are an array, otherwise false.
  */
-function array_is_arrays(array $arr, $throw_exceptions = false) {
-	$filtered = array_filter($arr, 'is_array');
-	return count($arr) === count($filtered);
+function array_is_arrays(array $arrays) {
+	return count($arrays) === count(array_filter($arrays, 'is_array'));
 }
 
 /**
@@ -302,13 +291,12 @@ function in_arrayi($needle, $haystack) {
 /**
  * Explodes a string into an array and trims whitespace from each item.
  * 
- * @param string $delim String delimeter to use in explode().
- * @param string $str String to explode.
- * @param string $charlist Characters to trim from each exploded item in trim().
- * @return array Indexed array of trimmed string parts delimited by $delim.
+ * @param string $delimeter String delimeter to use in explode().
+ * @param string $string String to explode.
+ * @return array Indexed array of trimmed string parts delimited by $delimeter.
  */
-function explode_trim($delim, $str, $charlist = '\t\r\n ') {
-	return array_map('trim', explode($delim, $str), $charlist);
+function explode_trim($delimeter, $string) {
+	return array_map('trim', explode($delimeter, $string));
 }
 
 /**

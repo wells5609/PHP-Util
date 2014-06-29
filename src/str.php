@@ -18,7 +18,10 @@ function str_numeric($val) {
 		return $val;
 	}
 	
-	return (false === strpos($val, DECIMAL_POINT)) ? intval($val) : floatval($val);
+	$loc = localeconv();
+	$decimal = empty($loc['decimal_point']) ? '.' : $loc['decimal_point'];
+	
+	return (false === strpos($val, $decimal)) ? intval($val) : floatval($val);
 }
 
 /**
@@ -114,17 +117,22 @@ function str_sentences($string, $num, $strip = false) {
  * @return string String stripped of invalid unicode.
  */
 function str_clean_unicode($str) {
-		
-	$encoding = mb_detect_encoding($str);
+	static $mb;
 	
-	// temporarily unset mb substitute character and convert
-	if ('UTF-8' !== $encoding && 'ASCII' !== $encoding) {
+	if (! isset($mb)) {
+		$mb = extension_loaded('mbstring');
+	}
+	
+	if ($mb) {
 			
-		$mb_substitute = ini_set('mbstring.substitute_character', "none");
+		$encoding = mb_detect_encoding($str);
 		
-		$str = mb_convert_encoding($str, 'UTF-8', 'UTF-8');
-		
-		ini_set('mbstring.substitute_character', $mb_substitute);
+		if ('UTF-8' !== $encoding && 'ASCII' !== $encoding) {
+			// temporarily unset mb substitute character and convert
+			$mbsub = ini_set('mbstring.substitute_character', "none");
+			$str = mb_convert_encoding($str, 'UTF-8', 'UTF-8');
+			ini_set('mbstring.substitute_character', $mbsub);
+		}
 	}
 	
 	return stripcslashes(preg_replace('/\\\\u([0-9a-f]{4})/i', '', $str));

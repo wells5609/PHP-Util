@@ -88,7 +88,6 @@ php_util_use_function('to_seconds');
 /** ================================
 		Scalar Sanitization
 ================================= */
-php_util_use('esc');
 php_util_use('sanitize-validate');
 
 /** ================================
@@ -99,9 +98,7 @@ php_util_use('array');
 /** ================================
 			Filesystem
 ================================= */
-php_util_use('path');
-php_util_use('dir');
-php_util_use('file');
+php_util_use('filesystem');
 
 /** ================================
 			Callable
