@@ -3,9 +3,50 @@
  * @package PHP-Util
  */
 
-/** ================================
-		Arrays & Iteration
-================================= */
+/**
+ * Converts an array, object, or string to an array.
+ * 
+ * @param mixed $thing Array, object, or string (JSON, serialized, or XML).
+ * @return array
+ */
+function to_array($thing) {
+	if (is_array($thing)) {
+		return array_build($thing);
+	}
+	if (is_object($thing)) {
+		return method_exists($thing, 'toArray') ? $thing->toArray() : array_build($thing);
+	}
+	if (is_string($thing)) {
+		if (is_json($thing)) {
+			return json_decode($thing, true);
+		}
+		if (is_serialized($thing)) {
+			return to_array(unserialize($thing));
+		}
+		if (is_xml($thing)) {
+			return xml2array($thing);
+		}
+	}
+	return (array) $thing;
+}
+
+/**
+ * Builds an array from an array or object so that all non-scalar items are arrays.
+ * 
+ * @param mixed $thing
+ * @return array
+ */
+function array_build($thing) {
+	$array = array();
+	foreach($thing as $key => $value) {
+		if (is_array($value) || is_object($value)) {
+			$array[$key] = array_build($value);
+		} else {
+			$array[$key] = boxval($value);
+		}
+	}
+	return $array;
+}
 
 /**
  * Pulls a value from each array in an array by key/index and returns an array of the values.
@@ -276,6 +317,53 @@ function array_is_instances(array $objects, $class) {
  */
 function array_is_arrays(array $arrays) {
 	return count($arrays) === count(array_filter($arrays, 'is_array'));
+}
+
+/**
+ * Returns an array of elements that satisfy the given conditions.
+ * 
+ * @param array $array Array of arrays or objects.
+ * @param array $conditions Associative array of keys/properties and values.
+ * @param string $operator One of 'AND', 'OR', or 'NOT'. Default 'AND'.
+ * @return array Array elements that satisfy the conditions.
+ */
+function array_where(array $array, array $conditions, $operator = 'AND') {
+	
+	if (empty($conditions)) {
+		return $array;
+	}
+	
+	$filtered = array();
+	$oper = strtoupper($operator);
+	$n = count($conditions);
+	
+	foreach ($array as $key => $obj) {
+		
+		$matches = 0;
+		
+		foreach ($conditions as $m_key => $m_value) {
+				
+			if (is_array($obj)) {			
+				if (array_key_exists($m_key, $obj) && $m_value == $obj[$m_key]) {
+					$matches++;
+				}
+			} else if (is_object($obj)) {
+				if (isset($obj->$m_key) && $m_value == $obj->$m_key) {
+					$matches++;
+				}
+			}
+		}
+		
+		if (
+			('AND' == $oper && $matches == $n) 
+			|| ('OR' == $oper && $matches > 0) 
+			|| ('NOT' == $oper && 0 == $matches) 
+		) {
+			$filtered[$key] = $obj;
+        }
+	}
+	
+	return $filtered;
 }
 
 /**

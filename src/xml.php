@@ -7,6 +7,113 @@
 				XML
 ================================= */
 
+class XML {
+	
+	protected $writer;
+	protected $reader;
+	protected $root_tag = 'XML';
+	protected $version = '1.0';
+	protected $encoding = 'UTF-8';
+	
+	public static function writeDocument(array $data, $root_tag = 'document', $version = '1.0', $encoding = 'UTF-8') {
+		
+		$xml = new static();
+		$xml->setRootTag($root_tag);
+		$xml->setVersion($version);
+		$xml->setEncoding($encoding);
+		
+		return $xml->write($data);
+	}
+	
+	public function __construct(\XMLWriter $writer = null, \XMLReader $reader = null) {
+		if (isset($writer)) {
+			$this->writer = $writer;
+		}
+		if (isset($reader)) {
+			$this->reader = $reader;
+		}
+	}
+	
+	public function setRootTag($tag) {
+		$this->root_tag = esc_alnum($tag);
+	}
+	
+	public function setVersion($ver) {
+		$this->version = $ver;
+	}
+	
+	public function setEncoding($encoding) {
+		$this->encoding = strtoupper($encoding);
+	}
+	
+	public function write(array $data) {
+		
+		if (! isset($this->writer)) {
+			$this->writer = new \XMLWriter();
+		}
+		
+		$this->writer->openMemory();
+		
+		$this->writer->startDocument($this->version, $this->encoding);
+		$this->writer->startElement($this->root_tag);
+		
+		$this->element($data);
+		
+		$this->writer->endElement();
+		$this->writer->endDocument();
+		
+		return $this->writer->outputMemory(true);
+	}
+	
+	protected function element(array $data) {
+	
+		foreach ($data as $key => $value) {
+			
+			if (! ctype_alnum($key)) {
+				$key = strip_tags(str_replace(array(' ', '-', '/', '\\'), '_', $key));
+			}
+			
+			if (is_numeric($key)) {
+				$key = 'Item_'.intval($key);
+			}
+			
+			if (is_object($value)) {
+				if (method_exists($value, 'xmlSerialize')) {
+					$value = $value->xmlSerialize();
+				} else {
+					$value = method_exists($value, 'toArray') ? $value->toArray() : get_object_vars($value);
+				}
+			}
+			
+			if (is_array($value)) {
+	
+				if (isset($value['@tag']) && is_string($value['@tag'])) {
+					$key = str_replace(' ', '', $value['@tag']);
+					unset($value['@tag']);
+				}
+	
+				$this->writer->startElement($key);
+	
+				if (isset($value['@attributes'])) {
+					foreach (array_unique($value['@attributes']) as $k => $v) {
+						$this->writer->writeAttribute($k, $v);
+					}
+					unset($value['@attributes']);
+				}
+	
+				$this->element($value);
+				
+				$this->writer->endElement();
+				
+			} else if (is_scalar($value)) {
+			
+				$this->writer->writeElement($key, htmlspecialchars($value));
+			}
+		}
+	}
+	
+}
+
 /**
  * Creates and returns a new XML document as string.
  * 
@@ -17,14 +124,7 @@
  * @return string XML
  */
 function xml_write_document(array $data, $root_tag = 'document', $version = '1.0', $encoding = 'UTF-8') {
-	$xml = new \XMLWriter();
-	$xml->openMemory();
-	$xml->startDocument($version, $encoding);
-	$xml->startElement($root_tag);
-	xml_write_element($xml, $data);
-	$xml->endElement();
-	$xml->endDocument();
-	return $xml->outputMemory(true);
+	return XML::writeDocument($data, $root_tag, $version, $encoding);
 }
 
 /**
@@ -43,7 +143,7 @@ function xml_write_element(\XMLWriter $xml, array $data) {
 		}
 		
 		if (is_numeric($key)) {
-			$key = 'Item_'. (int)$key;
+			$key = 'Item_'.intval($key);
 		}
 		
 		if (is_object($value)) {

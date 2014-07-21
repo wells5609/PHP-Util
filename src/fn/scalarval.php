@@ -16,7 +16,7 @@ function scalarval($var, $flags = 0) {
 	
 	switch (gettype($var)) {
 		case 'string' :
-			return ($flags & SCALAR_CAST_NUMERIC) ? cast_numeric($var) : $var;
+			return ($flags & SCALAR_CAST_NUMERIC) ? str_numeric($var) : $var;
 		case 'double' :
 		case 'integer' :
 			return ($flags & SCALAR_FORCE_STRING) ? strval($var) : $var;

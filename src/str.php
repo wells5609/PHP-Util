@@ -4,7 +4,7 @@
  * 
  * str_*() functions
  */
-
+ 
 /**
  * If $val is a numeric string, converts to float or integer depending on 
  * whether a decimal point is present. Otherwise returns original.

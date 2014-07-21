@@ -1,13 +1,13 @@
 {
 	"name": "wells5609/php-util",
 	"type": "library",
-	"description": "The missing utility functions for PHP.",
+	"description": "Helpful PHP utility functions.",
 	"keywords": ["Utility", "Utilities", "Common", "Helpers"],
 	"homepage": "https://github.com/wells5609/PHP-Util",
 	"license": "MIT",
 	"authors": [
 		{
-			"name": "A Developer",
+			"name": "The Developer",
 			"email": "wellspeterson@live.com"
 		}
 	],
@@ -15,7 +15,7 @@
 		"php": ">=5.3"
 	},
 	"autoload": {
-		"files": ["PHP-Util.php"]
+		"files": ["include.inc.php"]
 	},
 	"minimum-stability": "dev"
 }
