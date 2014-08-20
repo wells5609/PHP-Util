@@ -2,27 +2,22 @@
 /**
  * @package wells5609/php-util
  * 
- * str_*() functions
- */
- 
-/**
- * If $val is a numeric string, converts to float or integer depending on 
- * whether a decimal point is present. Otherwise returns original.
+ * String functions:
  * 
- * @param string $val If numeric string, converted to integer or float.
- * @return scalar Value as string, integer, or float.
+ *  * str_startswith()
+ *  * str_endswith()
+ *  * str_alnum()
+ *  * str_pear_case()
+ *  * str_snake_case()
+ *  * str_studly_case
+ *  * str_camel_case()
+ *  * str_numeric()
+ *  * str_between()
+ *  * str_sentences()
+ *  * str_clean_unicode()
+ *  * sql_escape_like()
+ * 
  */
-function str_numeric($val) {
-		
-	if (! is_numeric($val) || ! is_string($val)) {
-		return $val;
-	}
-	
-	$loc = localeconv();
-	$decimal = empty($loc['decimal_point']) ? '.' : $loc['decimal_point'];
-	
-	return (false === strpos($val, $decimal)) ? intval($val) : floatval($val);
-}
 
 /**
  * Returns true if $haystack starts with $needle.
@@ -49,6 +44,71 @@ function str_endswith($haystack, $needle, $match_case = true) {
 	return $match_case
 		? 0 === strcmp($needle, substr($haystack, -strlen($needle)))
 		: 0 === strcasecmp($needle, substr($haystack, -strlen($needle)));
+}
+
+/**
+ * Strips non-alphanumeric characters from a string.
+ * Add characters to $extras to preserve those as well.
+ * Extra chars should be escaped for use in preg_*() functions.
+ */
+function str_alnum($string, $extras = null) {
+	if (empty($extras) && ctype_alnum($string)) {
+		return $string;
+	}
+	$pattern = '/[^a-zA-Z0-9'. (isset($extras) ? $extras : '') .']/';
+	return preg_replace($pattern, '', $string);
+}
+
+/**
+ * Converts a string to a PEAR-like class name. (e.g. "Http_Request2_Response")
+ */
+function str_pear_case($str) {
+	$with_spaces = preg_replace('/[^a-zA-Z0-9]/', '_', trim(preg_replace('/[A-Z]/', ' $0', $str)));
+	return preg_replace('/[_]{2,}/', '_', str_replace(' ', '_', ucwords($with_spaces)));
+}
+
+/**
+ * Converts a string to "snake_case"
+ */
+function str_snake_case($str) {
+	return strtolower(str_pear_case($str));
+}
+
+/**
+ * Converts a string to "StudlyCaps"
+ */
+function str_studly_case($str) {
+	return str_replace(' ', '', ucwords(trim(preg_replace('/[^a-zA-Z0-9]/', ' ', $str))));
+}
+
+/**
+ * Converts a string to "camelCase"
+ */
+function str_camel_case($str) {
+	return lcfirst(str_studly_case($str));
+}
+
+/**
+ * If $val is a numeric string, converts to float or integer depending on 
+ * whether a decimal point is present. Otherwise returns original.
+ * 
+ * @param string $val If numeric string, converted to integer or float.
+ * @return scalar Value as string, integer, or float.
+ */
+function str_numeric($val) {
+	
+	if (! is_numeric($val) || ! is_string($val)) {
+		return $val;
+	}
+	
+	static $decimal;
+	
+	if (! isset($decimal)) {
+		$loc = localeconv();
+		$decimal = empty($loc['decimal_point']) ? '.' : $loc['decimal_point'];
+	}
+	
+	return (false === strpos($val, $decimal)) ? intval($val) : floatval($val);
 }
 
 /** 
@@ -111,17 +171,14 @@ function str_sentences($string, $num, $strip = false) {
 }
 
 /**
- * Strips invalid unicode from a using.
+ * Strips invalid unicode from a string.
  * 
- * @param string $str String to strip.
+ * @param string $str String.
  * @return string String stripped of invalid unicode.
  */
 function str_clean_unicode($str) {
 	static $mb;
-	
-	if (! isset($mb)) {
-		$mb = extension_loaded('mbstring');
-	}
+	isset($mb) OR $mb = extension_loaded('mbstring');
 	
 	if ($mb) {
 			
@@ -136,4 +193,14 @@ function str_clean_unicode($str) {
 	}
 	
 	return stripcslashes(preg_replace('/\\\\u([0-9a-f]{4})/i', '', $str));
+}
+
+/**
+ * Escapes text for SQL LIKE special characters % and _.
+ *
+ * @param string $text The text to be escaped.
+ * @return string text, safe for inclusion in LIKE query.
+ */
+function sql_escape_like($string) {
+	return str_replace(array("%", "_"), array("\\%", "\\_"), $string);
 }

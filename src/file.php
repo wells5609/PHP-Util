@@ -1,4 +1,19 @@
 <?php
+/**
+ * @package wells5609/php-util
+ * 
+ * File and directory functions:
+ * 
+ *  * unslash
+ *  * cleanpath
+ *  * joinpath
+ *  * is_abspath
+ *  * add_include_path
+ *  * remove_include_path
+ *  * globr
+ *  * scandirr
+ * 
+ */
 
 /**
  * Strips "/" and "\" from beginning and end of string.
@@ -42,11 +57,11 @@ function joinpath(/* $path1, $path2 [, $path3 [, ...]]] */) {
  */
 function is_abspath($path) {
 	if ('\\' !== DIRECTORY_SEPARATOR) {
-		return file_exists($path);
+		return (0 === strpos($path, '/'));
 	}
 	// Absolute paths on Windows must start with letter (local) 
 	// or a double backslash (network)
-	return 0 === strpos($path, '\\\\') ? true : fnmatch('?:[/|\]*', $path, FNM_NOESCAPE);
+	return (0 === strpos($path, '\\\\')) ? true : fnmatch('?:[/|\]*', $path, FNM_NOESCAPE);
 }
 
 /**
@@ -72,7 +87,7 @@ function remove_include_path($path) {
  * 
  * Returned array is flattened - both keys and values are full filesystem paths.
  * 
- * Faster than scandir_recursive(), but can consume lots of resources if used 
+ * Faster than scandirr(), but can consume lots of resources if used 
  * excessively with deep recursion.
  * 
  * Uses glob marking with substr() to check for subdirectories, which runs 
@@ -121,67 +136,4 @@ function scandirr($dir, $levels = 5, $level=0) {
 		}
 	}
 	return $dirs;
-}
-
-/**
- * Writes an array of data as rows to a CSV file.
- * 
- * @param string|resource	Writable filepath, or a file resource with write access.
- * @param array				Array of data to write as CSV to file.
- * @param callable $row_cb	[Optional] Callback run for each row; Callback is passed 
- * 							each row data array. If modification is desired, define
- * 							the first callback parameter by reference.
- * @return boolean			True if success, false and error if unwritable file.
- */
-function file_put_csv($file, array $data, $row_callback = null) {
-	if (! is_resource($file)) {
-		if (! is_writable($file)) {
-			throw new InvalidArgumentException("Cannot write CSV to unwritable file '$file'.");
-		}
-		$file = fopen($file, 'wb');
-	}
-    foreach ($data as $i => $row) {
-    	if (isset($row_callback)) {
-    		$row_callback($row, $i);
-    	}
-		fputcsv($file, $row);
-	}
-    fclose($file);
-	return true;
-}
-
-/**
- * Reads a CSV file and returns rows as an array.
- * 
- * @param string|resource $file			File path or handle opened with read capabilities.
- * @param boolean $first_row_is_data	Whether the first row is data (otherwise, used
- * 										as header names). Default false.
- * @param string|null $col_key_index	Column index to use as row array key. Default null.
- * @return array Array of rows, associative if $col_key_index given, otherwise indexed.
- */
-function file_get_csv($file, $first_row_is_data = false, $col_key_index = null) {
-	if (! is_resource($file)) {
-		if (! is_readable($file)) {
-			throw new InvalidArgumentException("Cannot read CSV from unreadable file '$file'.");
-		}
-		$file = fopen($file, 'rb');
-	}
-	$rows = array();
-	if (! $first_row_is_data) {
-		$headers = fgetcsv($file);
-	}
-	while ($line = fgetcsv($file)) {
-		if (isset($headers)) {
-			$data = array_combine($headers, $line);
-		} else {
-			$data =& $line;
-		}
-		if (isset($col_key_index) && isset($line[$col_key_index])) {
-			$rows[$line[$col_key_index]] = $data;
-		} else {
-			$rows[] = $data;
-		}
-	}
-	fclose($file);
-	return $rows;
 }

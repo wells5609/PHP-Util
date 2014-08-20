@@ -20,3 +20,4 @@ require __DIR__.'/src/input.php';
 require __DIR__.'/src/file.php';
 require __DIR__.'/src/callable.php';
 require __DIR__.'/src/xml.php';
+require __DIR__.'/src/csv.php';

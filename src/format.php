@@ -2,7 +2,14 @@
 /**
  * @package wells5609/php-util
  * 
- * Formatting functions
+ * Formatting functions:
+ * 
+ *  * to_seconds()
+ *  * str_format()
+ *  * phone_format()
+ *  * hash_format()
+ *  * bytes_format()
+ *
  */
 
 /**
