@@ -173,21 +173,36 @@ if (! function_exists('array_filter_keys')) :
 	/**
 	 * Filters an array by key.
 	 * 
-	 * Like array_filter(), except that it operates on keys rather than values.
+	 * Like array_filter(), except operates on keys rather than values.
 	 * 
 	 * @example
-	 * $array = array(1 => 1, 2 => 2, "3" => 3, "Four" => 4);
 	 * 
-	 * $newArray = array_filter_keys($array, 'is_numeric');
+	 * $a = array(
+	 * 		0 => 0, 
+	 * 		1 => 1, 
+	 * 		"2" => 2, 
+	 * 		"Three" => 3
+	 * );
 	 * 
-	 * // $newArray is = array(1 => 1, 2 => 2, "3" => 3);
+	 * $a2 = array_filter_keys($a, 'is_numeric');
+	 * $a3 = array_filter_keys($a, 'is_numeric', true);
+	 * 
+	 * // $a2 = array(0 => 0, 1 => 1, "2" => 2);
+	 * // $a3 = array("Three" => 3)
 	 * 
 	 * @param array $input Array to filter by key.
 	 * @param callable|null $callback Callback filter. Default null (removes empty keys).
+	 * @param boolean $negate Whether to values != $callback(). Default false.
 	 * @return array Key/value pairs of $input having the filtered keys.
 	 */
-	function array_filter_keys(array $input, $callback = null) {
+	function array_filter_keys(array $input, $callback = null, $negate = false) {
+			
 		$filtered = array_filter(array_keys($input), $callback);
+		
+		if ($negate) {
+			return empty($filtered) ? $input : array_diff_key($input, array_flip($filtered));
+		}
+		
 		return empty($filtered) ? array() : array_intersect_key($input, array_flip($filtered));
 	}
 	

@@ -9,7 +9,6 @@
  *  * csv2array
  * 
  */
- 
 
 /**
  * Writes an array of data as rows to a CSV file.

@@ -97,6 +97,7 @@ namespace phpUtil {
 				
 				if (! ctype_alnum($key)) {
 					$key = strip_tags(str_replace(array(' ', '-', '/', '\\'), '_', $key));
+					$key = str_alnum($key);
 				}
 				
 				if (is_numeric($key)) {
@@ -108,6 +109,8 @@ namespace phpUtil {
 						$value = $value->xmlSerialize();
 					} else if (method_exists($value, 'toArray')) {
 						$value = $value->toArray();
+					} else if ($value instanceof \Traversable) {
+						$value = iterator_to_array($value);
 					} else {
 						$value = get_object_vars($value);
 					}
@@ -119,7 +122,7 @@ namespace phpUtil {
 						$key = str_replace(' ', '', $value['@tag']);
 						unset($value['@tag']);
 					}
-		
+					
 					$xml_writer->startElement($key);
 		
 					if (isset($value['@attributes'])) {
@@ -181,11 +184,14 @@ function xml_write_element(\XMLWriter $xml, array $data) {
 function xml2array($xml) {
 	
 	if (is_file($xml)) {
+		
 		if (! is_readable($xml)) {
 			trigger_error("Unreadable XML file given: '$xml'.");
 			return null;
 		}
+		
 		$xml = simplexml_load_file($xml);
+	
 	} else {
 		$xml = simplexml_load_string($xml);
 	}

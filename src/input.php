@@ -153,18 +153,3 @@ function esc_float($val, $flags = 0) {
 function esc_int($val, $flags = 0) {
 	return filter_var($val, FILTER_SANITIZE_NUMBER_INT, $flags);
 }
-
-/**
- * Strips a string of non-alphanumeric characters.
- * 
- * @param string $string String to sanitize
- * @param string|null $extras Characters to allow in addition to alnum chars.
- * @return string Sanitized string containing only alnum (and any extra) characters.
- */
-function esc_alnum($string, $extras = null) {
-	if (! isset($extra) && ctype_alnum($string)) {
-		return $string;
-	}
-	$pattern = '/[^a-zA-Z0-9'. (isset($extra) ? $extra : '') .']/';
-	return preg_replace($pattern, '', $string);
-}

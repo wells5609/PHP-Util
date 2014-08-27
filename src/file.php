@@ -57,7 +57,7 @@ function joinpath(/* $path1, $path2 [, $path3 [, ...]]] */) {
  */
 function is_abspath($path) {
 	if ('\\' !== DIRECTORY_SEPARATOR) {
-		return (0 === strpos($path, '/'));
+		return '/' === $path[0];
 	}
 	// Absolute paths on Windows must start with letter (local) 
 	// or a double backslash (network)

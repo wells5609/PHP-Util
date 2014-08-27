@@ -16,10 +16,10 @@
  *  * mysql_datetime
  *  * mysql_date
  *  * getcookie
+ *  * object_to_array
  *  * objectid
  *  * define_safe
  *  * id
- *  * xdebug_config
  * 
  */
 
@@ -252,6 +252,29 @@ if (! function_exists('getcookie')) :
 	
 endif;
 
+if (! function_exists('object_to_array')) :
+	
+	/**
+	 * Returns an associative array from an object.
+	 * 
+	 * @param object $object
+	 * @return array
+	 */
+	function object_to_array($object) {
+		
+		if (method_exists($object, 'toArray')) {
+			return $object->toArray();
+		}
+		
+		if ($object instanceof \Traversable) {
+			return iterator_to_array($object);
+		}
+		
+		return get_object_vars($object);
+	}
+
+endif;
+
 if (! function_exists('objectid')) :
 	
 	/**
@@ -305,22 +328,6 @@ if (! function_exists('id')) :
 	 */
 	function id($var) {
 		return $var;
-	}
-
-endif;
-
-if (extension_loaded('xdebug')) :
-	
-	function xdebug_config(array $vars = null) {
-		$settings = array(
-			'xdebug.var_display_max_depth' => '15', // default 3
-			'xdebug.var_display_max_data' => '1024', // default 512
-			'xdebug.var_display_max_children' => '512' // default 128
-		);
-		isset($vars) and $settings = array_merge($settings, $vars);
-		foreach($settings as $varname => $value) {
-			ini_set($varname, $value);
-		}
 	}
 
 endif;

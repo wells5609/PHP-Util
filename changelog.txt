@@ -2,6 +2,11 @@
 PHP-Util Changelog
 --------------------
 
+0.3.1 (8/25/14)
+	- Add $negate option to array_filter_keys()
+	- Removed some less used functions
+	- Some other stuff I can't exactly remember...
+
 0.3.0 (7/21/14)
 	- Add include.inc.php file
 	- Rename individual package files
