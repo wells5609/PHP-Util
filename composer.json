@@ -15,7 +15,10 @@
 		"php": ">=5.3"
 	},
 	"autoload": {
-		"files": ["include.inc.php"]
+		"files": ["include.inc.php"],
+		"psr-4": {
+		    "phputil\\": "src/classes/"
+		}
 	},
 	"minimum-stability": "dev"
 }
