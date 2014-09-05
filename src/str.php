@@ -180,10 +180,8 @@ function str_clean_unicode($str) {
 	static $mb;
 	isset($mb) OR $mb = extension_loaded('mbstring');
 	
-	if ($mb) {
-			
+	if ($mb) {		
 		$encoding = mb_detect_encoding($str);
-		
 		if ('UTF-8' !== $encoding && 'ASCII' !== $encoding) {
 			// temporarily unset mb substitute character and convert
 			$mbsub = ini_set('mbstring.substitute_character', "none");
@@ -201,6 +199,6 @@ function str_clean_unicode($str) {
  * @param string $text The text to be escaped.
  * @return string text, safe for inclusion in LIKE query.
  */
-function sql_escape_like($string) {
+function sql_like_escape($string) {
 	return str_replace(array("%", "_"), array("\\%", "\\_"), $string);
 }

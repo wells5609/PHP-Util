@@ -143,31 +143,4 @@ class Xml {
 		}
 	}
 	
-	/**
-	 * Converts XML to an array.
-	 * 
-	 * JSON-encodes and decodes the XML after loading into a SimpleXML object. 
-	 * The returned arrays may therefore have an "@attributes" key.
-	 * 
-	 * @param string $xml XML string, or path to an XML file.
-	 * @return array XML as a nested array.
-	 */
-	public static function toArray($xml) {
-		
-		if (is_file($xml)) {
-			
-			if (! is_readable($xml)) {
-				trigger_error("Unreadable XML file given: '$xml'.");
-				return null;
-			}
-			
-			$xml = simplexml_load_file($xml);
-		
-		} else {
-			$xml = simplexml_load_string($xml);
-		}
-		
-		return json_decode(json_encode($xml), true);
-	}
-	
 }

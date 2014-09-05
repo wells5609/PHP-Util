@@ -4,6 +4,8 @@
  * 
  * Array functions:
  * 
+ *  * object_to_array
+ *  * array_to_object
  *  * array_get
  *  * array_set
  *  * array_unset
@@ -29,6 +31,60 @@
  *  * is_iterable
  *  * implode_nice
  */
+
+if (! function_exists('object_to_array')) :
+	
+	/**
+	 * Returns an associative array from an object.
+	 * 
+	 * @param object $object
+	 * @return array
+	 */
+	function object_to_array($object) {
+		
+		if (method_exists($object, 'toArray')) {
+			return $object->toArray();
+		}
+		
+		if ($object instanceof \Traversable) {
+			return iterator_to_array($object);
+		}
+		
+		return get_object_vars($object);
+	}
+
+endif;
+
+if (! function_exists('array_to_object')) :
+	
+	/**
+	 * Converts an array to an object (stdClass), optionally recursively.
+	 * 
+	 * @param array $array Array to convert to object.
+	 * @param boolean $recursive [Optional] Whether to convert recursively. Default false.
+	 * @return object Object containing the array's keys/values as properties.
+	 */
+	function array_to_object(array $array, $recusive = false) {
+		
+		$object = new \stdClass;
+		
+		foreach($array as $key => $value) {
+			
+			if (is_array($value)) {
+				$value = $recusive ? array_to_object($value, $recusive) : (object)$value;
+			
+			} else if (is_object($value) && ! $value instanceof \stdClass) {
+				$value = object_to_array($value);
+				$value = $recusive ? array_to_object($value, $recusive) : (object)$value;
+			}
+			
+			$object->$key = $value;
+		}
+		
+		return $object;
+	}
+
+endif;
 
 if (! function_exists('array_get')) :
 	

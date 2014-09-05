@@ -2,6 +2,14 @@
 PHP-Util Changelog
 --------------------
 
+0.3.4 (9/3/14)
+	- Merge file.php, xml.php, csv.php into files-formats.php
+
+0.3.3 (9/2/14)
+	- Add xml_decode(), remove xml2array()
+	- Add array_to_object()
+	- Move object_to_array() from misc.php to array.php
+
 0.3.2 (8/30/14)
 	- Move Xml class to own file
 

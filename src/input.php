@@ -51,10 +51,10 @@ function sanitize($variable, $type = STRING, $flags = 0) {
 /**
  * Validate a variable against a given type.
  * 
- * @param mixed $variable Variable to validate.
+ * @param mixed $variable Input to validate.
  * @param int $type Variable type constant. Default STRING
  * @param int $flags Optional filter_var() flags. Default 0.
- * @return mixed Results of validation, or NULL with error if invalid type given.
+ * @return boolean True if input validates, otherwise false.
  */
 function validate($variable, $type = STRING, $flags = 0) {
 	
@@ -111,45 +111,3 @@ function validate($variable, $type = STRING, $flags = 0) {
 	return false !== filter_var($variable, $filter, $flags);
 }
 
-/**
- * Sanitizes a string using filter_var() with FILTER_SANITIZE_STRING.
- * 
- * @param scalar $val String to filter.
- * @param int $filter_flags Bitwise FILTER_FLAG_* flags. Default: 0
- * @return string Sanitized string.
- */
-function esc_string($val, $flags = 0) {
-	return filter_var($val, FILTER_SANITIZE_STRING, $flags);
-}
-
-/**
- * Sanitizes a string using filter_var(), stripping non-ASCII characters (>127).
- * 
- * @param scalar $val Scalar value to escape.
- * @param string String containing only ASCII chars.
- */
-function esc_ascii($val) {
-	return filter_var($val, FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_HIGH|FILTER_FLAG_STRIP_BACKTICK);
-}
-
-/**
- * Sanitizes a float using filter_var() with FILTER_SANITIZE_NUMBER_FLOAT.
- * 
- * @param scalar $val Value to filter.
- * @param int $filter_flags Bitwise FILTER_FLAG_* flags. Default: 0
- * @return float Sanitized float value.
- */
-function esc_float($val, $flags = 0) {
-	return filter_var($val, FILTER_SANITIZE_NUMBER_FLOAT, $flags);
-}
-
-/**
- * Sanitizes an integer using filter_var() with FILTER_SANITIZE_NUMBER_INT.
- * 
- * @param scalar $val Value to filter.
- * @param int $filter_flags Bitwise FILTER_FLAG_* flags. Default: 0
- * @return int Sanitized integer value.
- */
-function esc_int($val, $flags = 0) {
-	return filter_var($val, FILTER_SANITIZE_NUMBER_INT, $flags);
-}

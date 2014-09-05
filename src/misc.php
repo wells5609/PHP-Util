@@ -9,14 +9,13 @@
  *  * is_json
  *  * is_serialized
  *  * is_xml
- *  * pdo_dsn
- *  * antispam_email
  *  * base64_url_encode
  *  * base64_url_decode
  *  * mysql_datetime
  *  * mysql_date
+ *  * pdo_dsn
+ *  * antispam_email
  *  * getcookie
- *  * object_to_array
  *  * objectid
  *  * define_safe
  *  * id
@@ -105,6 +104,90 @@ if (! function_exists('is_xml')) :
 
 endif;
 
+if (! function_exists('base64_url_encode')) :
+	
+	/**
+	 * Base64 encode a string, safe for URL's.
+	 * 
+	 * @param string $str Data to encode.
+	 * @return string URL-safe Base64-encoded string.
+	 */
+	function base64_url_encode($str) {
+	    return str_replace(array('+','/','=','\r','\n'), array('-','_'), base64_encode($str));
+	}
+	
+endif;
+
+if (! function_exists('base64_url_decode')) :
+	
+	/**
+	 * Decodes a URL-safe Base64-encoded string.
+	 * 
+	 * @param string $str URL-safe Base64-encoded string.
+	 * @return string Decoded string.
+	 */
+	function base64_url_decode($str) {
+		$str = str_replace(array('-', '_'), array('+', '/'), $str);
+		if ($m4 = (strlen($str) % 4)) {
+			$str .= substr('====', $m4);
+		}
+		return base64_decode($str);
+	}
+
+endif;
+
+if (! function_exists('mysql_datetime')) :
+	
+	/**
+	 * Returns a MySQL DATETIME string.
+	 * 
+	 * @param int|null $time Unix time, or current time if NULL.
+	 * @return string MySQL DATETIME representation of given time ("Y-m-d H:i:s").
+	 */
+	function mysql_datetime($time = null) {
+		return date('Y-m-d H:i:s', $time ?: time());
+	}
+
+endif;
+
+if (! function_exists('mysql_date')) :
+	
+	/**
+	 * Returns a MySQL DATE string.
+	 * 
+	 * @param int|null $time Unix time, or current time if NULL.
+	 * @return string MySQL DATE representation of given time ("Y-m-d").
+	 */
+	function mysql_date($time = null) {
+		return date('Y-m-d', $time ?: time());
+	}
+
+endif;
+
+if (! function_exists('udate')) :
+	
+	/**
+	 * An implementation of date() that allows for microseconds via the 'u' format flag.
+	 * 
+	 * @param string $format A date()-type format, including "u".
+	 * @param float $utime [Optional] A timestamp with microseconds like that returned 
+	 * from microtime(), or null to use the current time. Default null.
+	 * @return string Date formatted with microseconds.
+	 */
+	function udate($format = 'u', $utime = null) {
+		
+		if (null === $utime) {
+			$utime = microtime(true);
+		}
+		
+		$time = floor($utime);
+		$milliseconds = round(($utime - $time)*1000000);
+		
+		return date(preg_replace('`(?<!\\\\)u`', $milliseconds, $format), $time);
+	}
+
+endif;
+
 if (! function_exists('pdo_dsn')) :
 	
 	/**
@@ -176,66 +259,6 @@ if (! function_exists('antispam_email')) :
 
 endif;
 
-if (! function_exists('base64_url_encode')) :
-	
-	/**
-	 * Base64 encode a string, safe for URL's.
-	 * 
-	 * @param string $str Data to encode.
-	 * @return string URL-safe Base64-encoded string.
-	 */
-	function base64_url_encode($str) {
-	    return str_replace(array('+','/','=','\r','\n'), array('-','_'), base64_encode($str));
-	}
-	
-endif;
-
-if (! function_exists('base64_url_decode')) :
-	
-	/**
-	 * Decodes a URL-safe Base64-encoded string.
-	 * 
-	 * @param string $str URL-safe Base64-encoded string.
-	 * @return string Decoded string.
-	 */
-	function base64_url_decode($str) {
-		$str = str_replace(array('-', '_'), array('+', '/'), $str);
-		if ($m4 = (strlen($str) % 4)) {
-			$str .= substr('====', $m4);
-		}
-		return base64_decode($str);
-	}
-
-endif;
-
-if (! function_exists('mysql_datetime')) :
-	
-	/**
-	 * Returns a MySQL DATETIME string.
-	 * 
-	 * @param int|null $time Unix time, or current time if NULL.
-	 * @return string MySQL DATETIME representation of given time ("Y-m-d H:i:s").
-	 */
-	function mysql_datetime($time = null) {
-		return date('Y-m-d H:i:s', $time ?: time());
-	}
-
-endif;
-
-if (! function_exists('mysql_date')) :
-	
-	/**
-	 * Returns a MySQL DATE string.
-	 * 
-	 * @param int|null $time Unix time, or current time if NULL.
-	 * @return string MySQL DATE representation of given time ("Y-m-d").
-	 */
-	function mysql_date($time = null) {
-		return date('Y-m-d', $time ?: time());
-	}
-
-endif;
-
 if (! function_exists('getcookie')) :
 	
 	/**
@@ -250,29 +273,6 @@ if (! function_exists('getcookie')) :
 		return array_key_exists($name, $_COOKIE) ? $_COOKIE[$name] : false;
 	}
 	
-endif;
-
-if (! function_exists('object_to_array')) :
-	
-	/**
-	 * Returns an associative array from an object.
-	 * 
-	 * @param object $object
-	 * @return array
-	 */
-	function object_to_array($object) {
-		
-		if (method_exists($object, 'toArray')) {
-			return $object->toArray();
-		}
-		
-		if ($object instanceof \Traversable) {
-			return iterator_to_array($object);
-		}
-		
-		return get_object_vars($object);
-	}
-
 endif;
 
 if (! function_exists('objectid')) :
