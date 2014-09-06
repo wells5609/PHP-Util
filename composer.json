@@ -1,24 +1,25 @@
 {
-	"name": "wells5609/php-util",
-	"type": "library",
-	"description": "Helpful PHP utility functions.",
-	"keywords": ["Utility", "Utilities", "Common", "Helpers"],
-	"homepage": "https://github.com/wells5609/PHP-Util",
-	"license": "MIT",
-	"authors": [
-		{
-			"name": "The Developer",
-			"email": "wellspeterson@live.com"
-		}
-	],
-	"require": {
-		"php": ">=5.3"
-	},
-	"autoload": {
-		"files": ["include.inc.php"],
-		"psr-4": {
-		    "phputil\\": "src/classes/"
-		}
-	},
-	"minimum-stability": "dev"
+    "name": "wells5609/php-util",
+    "type": "library",
+    "description": "Helpful PHP utility functions.",
+    "keywords": ["Utility", "Utilities", "Common", "Helpers"],
+    "homepage": "https://github.com/wells5609/PHP-Util",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "The Developer",
+            "email": "wellspeterson@live.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.3"
+    },
+    "suggest": {
+        "wells5609/php-math": "Basic common math functions using BCmath."
+    },
+    "autoload": {
+        "files": ["include.inc.php"],
+        "psr-4": {"phputil\\": "src/classes/"}
+    },
+    "minimum-stability": "dev"
 }

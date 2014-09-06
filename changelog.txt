@@ -2,6 +2,11 @@
 PHP-Util Changelog
 --------------------
 
+0.3.5 (9/6/14)
+	- Remove is_windows() [misc.php]
+	- Add udate() [misc.php]
+	- Remove csv2array(), add csv_decode() [files-formats.php]
+
 0.3.4 (9/3/14)
 	- Merge file.php, xml.php, csv.php into files-formats.php
 

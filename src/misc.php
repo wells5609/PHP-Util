@@ -4,7 +4,6 @@
  * 
  * Miscellaneous
  * 
- *  * is_windows
  *  * is_url
  *  * is_json
  *  * is_serialized
@@ -13,6 +12,7 @@
  *  * base64_url_decode
  *  * mysql_datetime
  *  * mysql_date
+ *  * udate
  *  * pdo_dsn
  *  * antispam_email
  *  * getcookie
@@ -22,25 +22,12 @@
  * 
  */
 
-if (! function_exists('is_windows')) :
-	 
-	/**
-	 * Returns true if server OS is Windows.
-	 * 
-	 * @return boolean True if server OS is Windows, otherwise false.
-	 */
-	function is_windows() {
-		return '\\' === DIRECTORY_SEPARATOR;
-	}
-
-endif;
-
 if (! function_exists('is_url')) :
-		
+	
 	/**
 	 * Checks whether given string looks like a valid URL.
 	 * 
-	 * A valid URL will either start with two slashes ("//") or
+	 * A valid URL must either start with two slashes ("//") or
 	 * contain a protocol followed by a colon and two slashes ("://").
 	 * 
 	 * @param string $str String to check.

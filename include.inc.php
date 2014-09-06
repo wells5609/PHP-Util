@@ -2,11 +2,11 @@
 /**
  * @package wells5609/php-util
  * 
- * PHP utility function library.
+ * PHP utility library.
  * 
  * @license MIT
  * @author wells5609
- * @version 0.3.3
+ * @version 0.3.5
  * 
  * @see changelog.txt for version changes.
  */
@@ -28,23 +28,6 @@ function phputil_use_function($name) {
 	}
 	
 	$file = __DIR__.'/src/fn/'.$name.'.php';
-	
-	if (file_exists($file)) {
-		require $file;
-		return $loaded[$name] = true;;
-	}
-	
-	return $loaded[$name] = false;
-}
-
-function phputil_use_class($name) {
-	static $loaded = array();
-	
-	if (isset($loaded[$name])) {
-		return $loaded[$name];
-	}
-	
-	$file = __DIR__.'/src/classes/'.$name.'.php';
 	
 	if (file_exists($file)) {
 		require $file;

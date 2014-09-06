@@ -1,11 +1,12 @@
 <?php
 /**
  * @package wells5609/php-util
- * 
- * File and directory functions:
+ */
+
+/**
+ * @subpackage Filesystem
  * 
  *  * unslash
- *  * cleanpath
  *  * joinpath
  *  * is_abspath
  *  * add_include_path
@@ -124,15 +125,148 @@ function scandirr($dir, $levels = 5, $level=0) {
 	return $dirs;
 }
 
+
 /** --------------------------------
- * @package wells5609\php-util
+ * @subpackage XML
  * 
- * CSV functions:
- *  * file_put_csv
- *  * file_get_csv
- *  * csv2array
+ *  * xml_write_document()
+ *  * xml_write_element()
+ *  * xml_decode()
  * 
  * ------------------------------ */
+
+/**
+ * Creates and returns a new XML document as string.
+ * 
+ * @param array $data Data to format as XML. Nested arrays are preferred.
+ * @param string $root_tag Tag to place at root of document. Default 'document'.
+ * @param string $version XML version to use. Default '1.0'.
+ * @param string $encoding XML encoding to use. Default 'UTF-8'.
+ * @return string XML
+ */
+function xml_write_document(array $data, $root_tag = 'document', $version = '1.0', $encoding = 'UTF-8') {
+	return \phputil\Xml::writeDocument($data, $root_tag, $version, $encoding);
+}
+
+/**
+ * Adds an XML element to the given XMLWriter object.
+ * 
+ * @param XMLWriter $xml XMLWriter instance.
+ * @param array $data Associative array of data.
+ * @return void
+ */
+function xml_write_element(\XMLWriter $xml, array $data) {
+	return \phputil\Xml::writeElement($xml, $data);
+}
+
+/**
+ * Decodes an XML string into an object or array.
+ * 
+ * @param string $xml A well-formed XML string.
+ * @param boolean $assoc [Optional] Decode as an associative array. Default false.
+ * @return object|array XML data decoded as object(s) or array(s).
+ */
+function xml_decode($xml, $assoc = false) {
+	return json_decode(json_encode(simplexml_load_string($xml)), $assoc);
+}
+
+
+/** --------------------------------
+ * @subpackage CSV
+ * 
+ *  * csv_decode
+ *  * file_get_csv
+ *  * file_put_csv
+ * 
+ * ------------------------------ */
+
+/**
+ * Returns an array or object of items from a CSV string.
+ * 
+ * The string is written to a temporary stream so that fgetcsv() can be used. 
+ * This has the nice (side) effect of avoiding str_getcsv(), which is less
+ * forgiving in its treatment of escape characters and delimeters (and is 5.3+).
+ * 
+ * @param string $csv CSV string.
+ * @param boolean $assoc [Optional] Whether to return as associative arrays rather 
+ * than objects. Default false.
+ * @param boolean $has_headers [Optional] Whether the first row contains header data. 
+ * Headers will be used as the keys for the values in each subsequent row. Default true.
+ * @return array Array of items with keys set to headers if $has_headers = true.
+ */
+function csv_decode($string, $assoc = false, $has_headers = true) {
+	
+	$fh = fopen('php://temp/maxmemory='.(2*1024*1024), 'wb+');
+	
+	fwrite($fh, $string);
+	rewind($fh);
+	
+	$data = array();
+	
+	if ($has_headers) {
+		$headers = fgetcsv($fh);
+		$num_headers = count($headers);
+	}
+	
+	while($line = fgetcsv($fh)) {
+	
+		if ($has_headers) {
+			$line = array_combine($headers, array_pad($line, $num_headers, ''));
+		}
+		
+		if (! $assoc) {
+			$line = (object)$line;
+		}
+		
+		$data[] = $line;
+	}
+	
+	fclose($fh);
+	
+	return $data;
+}
+
+/**
+ * Reads a CSV file and returns rows as an array.
+ * 
+ * @param string $file Filepath to CSV file.
+ * @param boolean $has_headers Whether the first row is headers. Default true.
+ * @return array Array of rows.
+ */
+function file_get_csv($file, $assoc = false, $has_headers = true) {
+	
+	if (! is_readable($file)) {
+		trigger_error('Cannot read CSV from unreadable file: "'.$file.'".');
+		return null;
+	}
+	
+	$fh = fopen($file, 'rb');
+	
+	$rows = array();
+	
+	if ($has_headers) {
+		$headers = fgetcsv($fh);
+		$num_headers = count($headers);
+	}
+	
+	while ($line = fgetcsv($fh)) {
+	
+		if ($has_headers) {
+			// pad the values so array_combine doesnt choke
+			$line = array_combine($headers, array_pad($line, $num_headers, ''));
+		}
+		
+		if (! $assoc) {
+			$line = (object)$line;
+		}
+		
+		$rows[] = $line;
+	}
+	
+	fclose($fh);
+	
+	return $rows;
+}
 
 /**
  * Writes an array of data as rows to a CSV file.
@@ -168,147 +302,3 @@ function file_put_csv($file, array $data, $row_callback = null) {
 	
 	return true;
 }
-
-/**
- * Reads a CSV file and returns rows as an array.
- * 
- * @param string|resource $file			File path or handle opened with read capabilities.
- * @param boolean $first_row_is_data	Whether the first row is data (otherwise, used
- * 										as header names). Default false.
- * @param string|null $col_key_index	Column index to use as row array key. Default null.
- * @return array Array of rows, associative if $col_key_index given, otherwise indexed.
- */
-function file_get_csv($file, $first_row_is_data = false, $col_key_index = null) {
-	
-	if (! is_resource($file)) {
-			
-		if (! is_readable($file)) {
-			throw new InvalidArgumentException("Cannot read CSV from unreadable file '$file'.");
-		}
-		
-		$file = fopen($file, 'rb');
-	}
-	
-	$rows = array();
-	
-	if (! $first_row_is_data) {
-		$headers = fgetcsv($file);
-	}
-	
-	while ($line = fgetcsv($file)) {
-	
-		if (isset($headers)) {
-			$data = array_combine($headers, $line);
-		} else {
-			$data =& $line;
-		}
-	
-		if (isset($col_key_index) && isset($line[$col_key_index])) {
-			$rows[$line[$col_key_index]] = $data;
-		} else {
-			$rows[] = $data;
-		}
-	}
-	
-	fclose($file);
-	
-	return $rows;
-}
-
-
-/**
- * Returns an array of items from a CSV string, file, or file handle.
- * 
- * @param string|resource $csv CSV string, file path, or file handle with read capability.
- * @param boolean $has_headers [Optional] Whether the first row of data is headers. Default true.
- * @return array Array of items with keys set to headers if $has_headers = true.
- */
-function csv2array($csv, $has_headers = true) {
-	
-	if (is_resource($csv)) {
-		$fh =& $csv;
-	
-	} else if (! is_file($csv)) {
-		// Given string - write to temporary stream (2MB memory, then file)
-		$fh = fopen('php://temp/maxmemory='.(2*1024*1024), 'wb+');
-		fwrite($fh, $csv);
-	
-	} else if (! $fh = fopen($csv, 'rb')) {
-		trigger_error("Could not open CSV file stream.", E_USER_NOTICE);
-		return null;
-	}
-	
-	rewind($fh);
-	$data = array();
-	
-	if ($has_headers) {
-		$headers = fgetcsv($fh);
-		$num_headers = count($headers);
-	}
-	
-	while($line = fgetcsv($fh)) {
-	
-		if ($has_headers) {
-			// pad the values so array_combine doesnt choke
-			$values = array_pad($line, $num_headers, '');
-			$data[] = array_combine($headers, $values);
-		
-		} else {
-			$data[] = $line;
-		}
-	}
-	
-	fclose($fh);
-	
-	return $data;
-}
-
-
-/** --------------------------------
- * @package wells5609\php-util
- * 
- * XML functions:
- *  * xml_write_document()
- *  * xml_write_element()
- *  * xml_decode()
- * 
- * ------------------------------ */
-
-
-/**
- * Creates and returns a new XML document as string.
- * 
- * @param array $data Data to format as XML. Nested arrays are preferred.
- * @param string $root_tag Tag to place at root of document. Default 'document'.
- * @param string $version XML version to use. Default '1.0'.
- * @param string $encoding XML encoding to use. Default 'UTF-8'.
- * @return string XML
- */
-function xml_write_document(array $data, $root_tag = 'document', $version = '1.0', $encoding = 'UTF-8') {
-	phputil_use_class('Xml');
-	return \phputil\Xml::writeDocument($data, $root_tag, $version, $encoding);
-}
-
-/**
- * Adds an XML element to the given XMLWriter object.
- * 
- * @param XMLWriter $xml XMLWriter instance.
- * @param array $data Associative array of data.
- * @return void
- */
-function xml_write_element(\XMLWriter $xml, array $data) {
-	phputil_use_class('Xml');
-	return \phputil\Xml::writeElement($xml, $data);
-}
-
-/**
- * Decodes an XML string into an object or array.
- * 
- * @param string $xml A well-formed XML string.
- * @param boolean $assoc [Optional] Decode as an associative array. Default false.
- * @return object|array XML data decoded as object(s) or array(s).
- */
-function xml_decode($xml, $assoc = false) {
-	return json_decode(json_encode(simplexml_load_string($xml)), $assoc);
-}
-
