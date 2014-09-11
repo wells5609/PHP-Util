@@ -1,8 +1,8 @@
 <?php
 /**
- * @package PHP-Util
+ * @package wells5609\php-util
  * 
- * Array functions:
+ * @subpackage Array
  * 
  *  * object_to_array
  *  * array_to_object
@@ -29,7 +29,7 @@
  *  * to_array
  *  * in_arrayi
  *  * is_iterable
- *  * implode_nice
+ *  * implode_nl
  */
 
 if (! function_exists('object_to_array')) :
@@ -533,15 +533,21 @@ if (! function_exists('array_mfilter')) :
 	 * @return array Objects which pass the filter.
 	 */
 	function array_mfilter(array $objects, $method, $negate = false) {
+		
 		$return = array();
+		
 		foreach($objects as $key => &$object) {
-			$value = $object->$method();
-			if (empty($value)) {
+				
+			$val = $object->$method();
+			
+			if (empty($val)) {
 				$negate and $return[$key] = $object;
+		
 			} else if (! $negate) {
 				$return[$key] = $object;
 			}
 		}
+		
 		return $return;
 	}
 	
@@ -553,14 +559,19 @@ if (! function_exists('array_pfilter')) :
 	 * Array property filter
 	 */
 	function array_pfilter(array $objects, $property, $negate = false) {
+			
 		$return = array();
+		
 		foreach($objects as $key => &$object) {
-			if (empty($object->$property)) {
+		
+			if (! isset($object->$property)) {
 				$negate and $return[$key] = $object;
+		
 			} else if (! $negate) {
 				$return[$key] = $object;
 			}
 		}
+		
 		return $return;
 	}
 	
@@ -572,14 +583,19 @@ if (! function_exists('array_kfilter')) :
 	 * Array key filter
 	 */
 	function array_kfilter(array $arrays, $key, $negate = false) {
+			
 		$return = array();
-		foreach($arrays as $o_key => $array) {
-			if (empty($array[$key])) {
-				$negate and $return[$o_key] = $array;
+		
+		foreach($arrays as $index => &$array) {
+		
+			if (! isset($array[$key])) {
+				$negate and $return[$index] = $array;
+		
 			} else if (! $negate) {
-				$return[$o_key] = $array;
+				$return[$index] = $array;
 			}
 		}
+		
 		return $return;
 	}
 
@@ -647,7 +663,7 @@ if (! function_exists('array_build')) :
 			} else {
 				
 				if (! is_scalar($value)) {
-					$array[$key] = is_bool($value) ? $value : (string) $value;
+					$array[$key] = is_bool($value) ? $value : (string)$value;
 				
 				} else if (is_numeric($value)) {
 					$array[$key] = (false === strpos($value, '.')) ? (int)$value : (float)$value;
@@ -656,7 +672,7 @@ if (! function_exists('array_build')) :
 					$array[$key] = ($value === 'true');
 			
 				} else {
-					$array[$key] = (string) $value;
+					$array[$key] = (string)$value;
 				}
 			}
 		}
@@ -675,23 +691,30 @@ if (! function_exists('to_array')) :
 	 * @return array
 	 */
 	function to_array($thing) {
+		
 		if (is_array($thing)) {
 			return array_build($thing);
 		}
+		
 		if (is_object($thing)) {
-			return method_exists($thing, 'toArray') ? $thing->toArray() : array_build($thing);
+			return array_build(object_to_array($thing));
 		}
+		
 		if (is_string($thing)) {
+				
 			if (is_json($thing)) {
 				return json_decode($thing, true);
 			}
+			
 			if (is_serialized($thing)) {
 				return to_array(unserialize($thing));
 			}
+			
 			if (is_xml($thing)) {
-				return xml2array($thing);
+				return xml_decode($thing, true);
 			}
 		}
+		
 		return (array) $thing;
 	}
 	
@@ -712,7 +735,7 @@ if (! function_exists('in_arrayi')) :
 endif;
 
 if (! function_exists('is_iterable')) :
-		
+	
 	/**
 	 * Returns true if value can be used in a foreach() loop.
 	 * 
@@ -720,13 +743,13 @@ if (! function_exists('is_iterable')) :
 	 * @return boolean True if var is array or Traversable, otherwise false.
 	 */
 	function is_iterable($var) {
-		return (is_array($var) || $var instanceof \Traversable);
+		return (is_array($var) || $var instanceof \Traversable || $var instanceof \stdClass);
 	}
 	
 endif;
 
-if (! function_exists('implode_nice')) :
-		
+if (! function_exists('implode_nl')) :
+	
 	/**
 	 * Implode an array into a list of items separated by $separator.
 	 * Use $last_separator for the last list item.
@@ -741,12 +764,15 @@ if (! function_exists('implode_nice')) :
 	 * @param string $last_separator. (default: ', and ')
 	 * @return string a list of array values
 	 */
-	function implode_nice(array $array, $separator = ', ', $last_separator = ', and ') {
+	function implode_nl(array $array, $separator = ", ", $last_separator = ", and ") {
+		
 		if (1 === count($array)) {
 			return reset($array);
 		}
-		$end_value = array_pop($array);
-		return implode($separator, $array).$last_separator.$end_value;
+		
+		$last_value = array_pop($array);
+		
+		return implode($separator, $array).$last_separator.$last_value;
 	}
 	
 endif;

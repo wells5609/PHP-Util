@@ -2,18 +2,29 @@
 PHP-Util Changelog
 --------------------
 
+0.3.6 (9/11/14)
+	- Split Csv class into CsvReader and CsvWriter
+	- Add conversion methods to CsvReader
+	- Add JsonReader class
+	- Rename "str.php" => "scalar.php"
+	- Merge input.php + format.php => scalar.php
+	- Merge callable.php => misc.php
+	- Add is_html() [misc.php]
+
 0.3.5 (9/6/14)
-	- Remove is_windows() [misc.php]
-	- Add udate() [misc.php]
-	- Remove csv2array(), add csv_decode() [files-formats.php]
+	- Remove is_windows()
+	- Add udate()
+	- Remove csv2array()
+	- Add csv_decode()
 
 0.3.4 (9/3/14)
-	- Merge file.php, xml.php, csv.php into files-formats.php
+	- Merge file.php + xml.php + csv.php => files-formats.php
 
 0.3.3 (9/2/14)
-	- Add xml_decode(), remove xml2array()
+	- Add xml_decode()
+	- Remove xml2array()
 	- Add array_to_object()
-	- Move object_to_array() from misc.php to array.php
+	- Move object_to_array() from misc.php => array.php
 
 0.3.2 (8/30/14)
 	- Move Xml class to own file
@@ -28,37 +39,41 @@ PHP-Util Changelog
 	- Rename individual package files
  
 0.2.8 (sometime in July 2014)
-	- Add `is_url()`, `is_serialized()`, `is_xml()`
+	- Add is_url()
+	- Add is_serialized() 
+	- Add is_xml()
  
 0.2.7 (5/10/14)
-	- Add a bunch of array functions [array.php]
-	- Add `is_json()` and `to_seconds()` [scalar.php]
- 	- Add `is_hhvm()` [misc.php]
+	- Add a bunch of array functions
+	- Add is_json()
+	- Add to_seconds()
+ 	- Add is_hhvm()
  		
 0.2.6 (4/25/14)
-	- Move scalar, array, and filesystem funcs to separate files.
-	- Add `str_between()` and `str_sentences()`
-	- Add `esc_alnum()`
-	- Add `in_arrayi()`
- 
+	- Move scalar, array, and filesystem functions to separate files.
+	- Add str_between() 
+	- Add str_sentences()
+	- Add esc_alnum()
+	- Add in_arrayi()
+
 0.2.5 (4/20/14)
-	- Add `getcookie()`
-	- Add `base64_url_encode()` and `base64_url_decode()`
+	- Add getcookie()
+	- Add base64_url_encode() and base64_url_decode()
  
 0.2.4 (4/16/14)
-	- Add parents and interfaces options to `classinfo()`
-	- Change `endswith()` to `str_endswith()`
-	- Change `startswith()` to `str_startswith()`
+	- Add parents and interfaces options to classinfo()
+	- Rename endswith() => str_endswith()
+	- Rename startswith() => str_startswith()
  
 0.2.3 (4/14/14)
-	- Add `file_extension()`
-	- Change `fwritecsv()` to `file_put_csv()`
-	- Add `file_get_csv()`
+	- Add file_extension()
+	- Rename fwritecsv() => file_put_csv()
+	- Add file_get_csv()
  
 0.2.2 (4/12/14) 
-	- Fix `classinfo()` bitwise
+	- Fix classinfo() bitwise
 	- Add is_win()
-	- Add optional row callback param to `fwritecsv()`
+	- Add optional row callback param to fwritecsv()
   
 0.2.1 (4/11/14) 
 	- Add XML functions; create package

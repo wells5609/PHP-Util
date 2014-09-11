@@ -138,7 +138,7 @@ class Xml {
 				
 			} else if (is_scalar($value)) {
 			
-				$xml_writer->writeElement($key, htmlspecialchars($value));
+				$xml_writer->writeElement($key, htmlspecialchars(html_entity_decode($value), ENT_COMPAT|ENT_SUBSTITUTE, 'UTF-8'));
 			}
 		}
 	}

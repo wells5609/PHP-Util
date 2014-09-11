@@ -1,9 +1,15 @@
 <?php
-/**
+/** ----------------------------------------------------------------
  * @package wells5609/php-util
- */
+ * 
+ * Subpackages in this file:
+ *  * Filesystem
+ *  * XML
+ *  * CSV
+ * 
+ * -------------------------------------------------------------- */
 
-/**
+/** ----------------------------------------------------------------
  * @subpackage Filesystem
  * 
  *  * unslash
@@ -14,7 +20,7 @@
  *  * globr
  *  * scandirr
  * 
- */
+ * -------------------------------------------------------------- */
 
 /**
  * Strips "/" and "\" from beginning and end of string.
@@ -126,14 +132,14 @@ function scandirr($dir, $levels = 5, $level=0) {
 }
 
 
-/** --------------------------------
+/** ----------------------------------------------------------------
  * @subpackage XML
  * 
  *  * xml_write_document()
  *  * xml_write_element()
  *  * xml_decode()
  * 
- * ------------------------------ */
+ * -------------------------------------------------------------- */
 
 /**
  * Creates and returns a new XML document as string.
@@ -171,14 +177,14 @@ function xml_decode($xml, $assoc = false) {
 }
 
 
-/** --------------------------------
+/** ----------------------------------------------------------------
  * @subpackage CSV
  * 
  *  * csv_decode
  *  * file_get_csv
  *  * file_put_csv
  * 
- * ------------------------------ */
+ * -------------------------------------------------------------- */
 
 /**
  * Returns an array or object of items from a CSV string.
