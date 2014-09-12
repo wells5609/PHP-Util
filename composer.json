@@ -18,7 +18,7 @@
         "wells5609/php-math": "Basic common math functions using BCmath."
     },
     "autoload": {
-        "files": ["include.inc.php"],
+        "files": ["php-util.phar"],
         "psr-4": {"phputil\\": "src/classes/"}
     },
     "minimum-stability": "dev"
