@@ -1,25 +1,21 @@
 {
     "name": "wells5609/php-util",
     "type": "library",
-    "description": "Commonly used helpers and utilities for PHP.",
-    "keywords": ["Utility", "Utilities", "Common", "Helpers"],
+    "description": "PHP utility library.",
+    "keywords": ["Utility", "Utilities", "Common", "Helpers", "Extension"],
     "homepage": "https://github.com/wells5609/PHP-Util",
     "license": "MIT",
     "authors": [
         {
-            "name": "The Developer",
+            "name": "wells",
             "email": "wellspeterson@live.com"
         }
     ],
     "require": {
-        "php": ">=5.3"
-    },
-    "suggest": {
-        "wells5609/php-math": "Basic common math functions using BCmath."
+        "php": ">=5.4"
     },
     "autoload": {
-        "files": ["php-util.phar"],
-        "psr-4": {"phputil\\": "src/classes/"}
+        "psr-4": {"Util\\": "src/classes/"}
     },
     "minimum-stability": "dev"
 }
